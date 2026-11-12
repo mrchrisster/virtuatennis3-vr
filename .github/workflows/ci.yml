@@ -1,0 +1,27 @@
+name: ci
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  macos:
+    # CI has no game, so this configures without lifted code: CMake then
+    # builds only the runtime's self-check (OpenGL host) against the pinned
+    # submodule, and the runtime's unit tests run. No game files involved.
+    runs-on: macos-15
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: recursive
+      - run: brew install ninja sdl2
+      - name: Lifter and runtime unit tests
+        run: |
+          python3 -m venv .venv
+          .venv/bin/python -m pip install capstone pyelftools
+          .venv/bin/python lindberghrecomp/tools/recomp/test_driver.py
+          for t in lindberghrecomp/tests/test_*.py; do echo "== $t"; .venv/bin/python "$t"; done
+      - run: cmake -S . -B build-mac -G Ninja -DLINDBERGH_RENDERER=OPENGL
+      - run: cmake --build build-mac
+      - run: build-mac/lindberghrecomp/lindbergh_rt_selftest

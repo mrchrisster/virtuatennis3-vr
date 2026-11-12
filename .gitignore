@@ -1,0 +1,92 @@
+# ---- Build output ----
+build/
+build-*/
+out/
+.venv/
+__pycache__/
+*.pyc
+*.o
+*.a
+*.dylib
+
+# ---- The lifted game: generated from the player's own copy, never committed ----
+games/*/generated/
+generated/
+recomp_*.c
+recomp_*.h
+
+# ---- Quest build (quest/build.sh vt3) ----
+*.apk
+*.aab
+*.apkm
+*.idsig
+/quest/local.properties
+/quest/.gradle/
+/quest/build/
+/quest/*/build/
+/quest/*/src/main/assets/
+/quest/*/src/main/libs/
+/quest/*/src/main/java/org/libsdl/
+*.keystore
+*.jks
+
+# ---- Game data: none of it belongs here, in any form ----
+# Game folders and disc trees, by name (a dropped-in tree brings the
+# executable, shaders, audio and textures together).
+disk0/
+disk1/
+vt3_Lindbergh/
+vt3_Lindbergh*
+vt3rc
+vt3.bin
+resource/
+shader/
+lib/
+*.iso
+*.img
+*.chd
+*.bin
+*.dat
+*.elf
+*.set
+*.afs
+*.adx
+*.aix
+*.csb
+*.xaf
+*.pvr
+*.dds
+*.efo
+*.abr
+*.cg
+*.asm_gl
+*.so
+*.so.*
+*.7z
+*.zip
+*.rar
+*.lvsp
+
+# ---- What a run leaves behind: frames, logs, saves, local settings ----
+*.ppm
+*.pgm
+*.bmp
+*.wav
+*.log
+lindbergh_nvram.bin
+lindbergh.ini
+vr.cfg
+env.txt
+vt3_save.bin
+vt3_save.bin.*
+*.bak
+
+# ---- Local / OS / editor ----
+.DS_Store
+._*
+.vs/
+.vscode/
+.idea/
+CLAUDE.md
+.claude/
+AGENTS.md

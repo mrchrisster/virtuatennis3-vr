@@ -1,0 +1,4 @@
+[submodule "lindberghrecomp"]
+	path = lindberghrecomp
+	url = https://github.com/mrchrisster/lindberghrecomp.git
+	branch = vt3-quest

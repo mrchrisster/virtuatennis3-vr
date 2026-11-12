@@ -1,0 +1,2 @@
+// the Virtua Tennis 3 VR Android module: quest/vt3, built by quest/build.sh vt3
+include ':vt3'

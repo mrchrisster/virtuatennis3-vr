@@ -1,0 +1,57 @@
+Virtua Tennis 3 VR
+==================
+
+Unofficial fan project, not affiliated with or endorsed by SEGA. Virtua
+Tennis is a trademark of SEGA. This repository contains no game files, no
+game code (original or recompiled), no game libraries (lib/libCg.so is
+read from the player's own copy at start-up; the generated
+recomp_solib_relocs.c holds only a relocation table and checksums and is
+not committed) and no game art; players supply their own
+copy of the game and build the app themselves.
+
+Origin
+------
+This repository is derived from lindbergh-recomp-ports
+(https://github.com/lialan/lindbergh-recomp-ports), a fork of sp00nznet's
+Lindbergh recompilation ports, MIT License, Copyright (c) 2026 sp00nz. The
+build glue (CMakeLists.txt, scripts/, quest/), games/vt3/ and the docs started
+from that repository and keep its MIT licence and copyright notice (LICENSE).
+
+Submodule
+---------
+lindberghrecomp/ - https://github.com/mrchrisster/lindberghrecomp, a fork of
+https://github.com/lialan/lindberghrecomp and
+https://github.com/sp00nznet/lindberghrecomp. MIT License, Copyright (c) 2026
+sp00nz; see lindberghrecomp/LICENSE. Its own submodule pcrecomp
+(https://github.com/mrchrisster/pcrecomp, a fork of lialan/pcrecomp and
+sp00nznet/pcrecomp) is MIT as well; see lindberghrecomp/pcrecomp/LICENSE.
+Third-party code inside it keeps its own notices (lindberghrecomp/third_party).
+
+Third-party components
+----------------------
+gl4es - https://github.com/ptitSeb/gl4es
+  MIT License. Copyright (c) 2016-2018 Sebastien Chevalier,
+  Copyright (c) 2013-2016 Ryan Hileman.
+  quest/gl4es.patch is a modification of gl4es and is distributed under
+  gl4es' MIT licence. quest/deps.sh fetches gl4es at a fixed commit and
+  applies the patch; gl4es is linked statically into the app.
+
+Fetched at build time by quest/deps.sh and quest/build.sh (not in this
+repository):
+  SDL 2.32.10 - https://libsdl.org - zlib licence (its Java glue is copied
+    into the Android project at build time)
+  OpenAL Soft 1.24.3 - https://openal-soft.org - LGPL-2.1-or-later, used as a
+    shared library (libopenal.so)
+  Khronos OpenXR loader for Android 1.1.49 - Apache License 2.0
+  Mesa GL/KHR headers (Vulkan builds only) - MIT
+
+quest/gradlew and quest/gradle/wrapper/ - the Gradle wrapper, Apache
+License 2.0, Copyright Gradle, Inc.
+
+Art
+---
+The launcher icon (quest/vt3/src/main/res) and the Quest start-up screen
+(games/vt3/src/splash_art.c) are original art drawn by quest/tools/vt3_icon.py
+and quest/tools/vt3_splash.py (text set in macOS system fonts at build
+time). The game's own title logo is not included: the app reads it from the
+player's game files at start-up.
