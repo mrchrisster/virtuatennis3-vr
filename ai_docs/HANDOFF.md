@@ -168,6 +168,39 @@ halves the rate). If any T-run fails, `adb install -r` a build of the
 committed submodule (or keep the `fade8ac` APK) before handing back.
 
 **Checkpoint log (build worker, newest first):**
+- **2026-11-13 ~12:00 Classic flicker round 3 - still NOT fixed; runtime 7d4d920
+  (test switch only, default behaviour = defb69a) installed, pinned in both trees.**
+  4 headset runs this task (QA/QB earlier, QC logs, QD mitigation); before each the
+  headset was asleep, no input; vr.cfg (owner's: mode immersive, stats on,
+  screen_size medium) byte-identical after each, env.txt 0 B, app stopped.
+  - **Why "composite kept" went black (QC, `/tmp/vt3q/T27/QC_log`, capture of
+    frame 2400 + COPY_LOG, switch at frame 2395 in one run: 117.9 mean before, 0.3
+    after):** in regular play no draw binds a screen copy on the active unit, so
+    the "copy drawn back" rule does nothing in play; the black comes from keeping
+    the colour clears. Each logged frame holds: clear 0x4400 (colour+stencil) x2,
+    14 shadow draws, copy into tex 45, clear depth, ~90 world draws, two small
+    fb-21 clears, ~28 draws, clear 0x4400, copy into 45, clears, ~106 draws, clear
+    0x4400, copy into 45, clears, 1 draw - and then the frame ends. macOS
+    (`/tmp/vt3q/T27/mac_draw2`, desktop GL, same capture, colour mask 1111 at every
+    clear) has the SAME order (copies into its texture 23) and shows a normal
+    picture. So the frame's last pass starts with a full colour clear and
+    the picture shown must come from elsewhere (front buffer / a later blit /
+    the copy being depth); under gl4es multiview only the dropped clear keeps a
+    picture in the eyes. Not solved; the old path stays.
+  - **Mitigation tried (QD):** Classic picture x2 (2720x1152... 2720x1536) + MSAA 4x:
+    blinking pixels per changed pixel 0.026 vs 0.025 at x1.5 / 2x (both measured at
+    680x384 over frames 2500-2553) - no gain; the frame rate fell to 39-46 fps
+    (late frames, GPU timer readings garbage at 4x). Rejected; not a default.
+  - So the A-B-A rate on the Quest scales with motion like on macOS; the measure
+    does not separate the owner's flicker from ordinary motion aliasing.
+    Heat maps: `~/Desktop/Claude/vt3-bugs/classic_flicker_heatmap_quest_pic2_msaa4.png`,
+    `..._quest_play_fullres.png`, `..._mac_*`.
+  - Next ideas: watch it worn with LINDBERGH_STATS / a slow-motion capture of
+    what the owner points at; check whether the eyes at host frame end hold the
+    last pass's partial draws over the previous picture (the dropped clear
+    leaves earlier passes underneath - blended crowd cards / plate edges over
+    alternating leftovers would blink); compare the eye image at swap with the
+    macOS window for the same frame; find what VT3 shows after its final clear.
 - **2026-11-13 ~11:45 Classic flicker round 2 (owner: defb69a still flickers worn) -
   NOT fixed; findings; nothing new committed in the runtime.** Heat maps of A-B-A
   pixels (changed and back next frame) in `~/Desktop/Claude/vt3-bugs/classic_flicker_heatmap_*.png`

@@ -478,3 +478,9 @@ vr.cfg identical, env.txt 0 B. Flicker = the host's sampling of an eye-sized,
 stretched picture (shared VR path); fix = picture-sized Classic eye array x1.5
 + box filter (research step 1); Classic GPU 14-16 -> 8-10 ms. Owner to check
 worn; details at the top of HANDOFF 3.1. Step 2 (quad layer) waits for his word.
+
+## 2026-11-13 ~12:00 Classic flicker still open (build worker)
+Composite route failed (the black frames come from keeping the colour clears; the game's frame ends
+with clear+copy+one draw on macOS too); mitigation x2 + MSAA 4 gave no gain and broke 60 fps.
+Installed 7d4d920 (= defb69a behaviour + test switch), pinned in both trees, not pushed.
+Details at the top of HANDOFF 3.1.
