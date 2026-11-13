@@ -1,0 +1,600 @@
+diff --git a/src/runtime/world_mode.c b/src/runtime/world_mode.c
+index 5384bc0..72cbc3c 100644
+--- a/src/runtime/world_mode.c
++++ b/src/runtime/world_mode.c
+@@ -27,10 +27,10 @@ static const char *const ENV_NAME[WM_COUNT] = {
+     "LINDBERGH_SHADOW_SCALE", "LINDBERGH_VT3_DOLLY", "LINDBERGH_VT3_BACK", "LINDBERGH_VT3_SKY",
+     "LINDBERGH_VT3_HEIGHT", "LINDBERGH_VT3_CARD_RW", "LINDBERGH_VT3_LANGUAGE", "LINDBERGH_MSAA", "LINDBERGH_VT3_SAVE", "LINDBERGH_ANISO" };
+ static const char *const KEY_CLASSIC[WM_COUNT] = {
+-    "mode", "replays", "overlays", "classic.cutaways", "classic.shadow", NULL, NULL, NULL, NULL, NULL, "language", "msaa", "save", "aniso" };
++    "mode", "replays", "overlays", "classic.cutaways", "classic.shadow", NULL, NULL, NULL, NULL, NULL, "language", "classic.msaa", "save", "aniso" };
+ static const char *const KEY_IMMERSIVE[WM_COUNT] = {
+     "mode", "immersive.replays", "immersive.overlays", "immersive.cutaways", "immersive.shadow",
+-    "immersive.dolly", "immersive.back", "immersive.sky", "immersive.height", NULL, "language", "msaa", "save", "aniso" };
++    "immersive.dolly", "immersive.back", "immersive.sky", "immersive.height", NULL, "language", "immersive.msaa", "save", "aniso" };
+ 
+ const char *world_mode_env_name(int key) { return key >= 0 && key < WM_COUNT ? ENV_NAME[key] : NULL; }
+ const char *world_mode_key(int key, int immersive)
+@@ -126,14 +126,14 @@ void world_mode_resolve(const LgXrSettings *s, int mode, int capable, unsigned p
+     (void)s->classic_card_notice;
+     if ((v = env(WM_CARD))) { o->card_notice = *v == '1'; k[WM_CARD] = WM_SRC_ENV; }
+     o->language = s->language;
+-    o->msaa = s->msaa;
++    o->msaa = xr_settings_msaa(im ? s->imm_msaa : s->classic_msaa);
+     o->save = s->save;
+     if ((v = env(WM_SAVE))) { o->save = *v == '1' || !strcmp(v, "on"); k[WM_SAVE] = WM_SRC_ENV; }
+     o->aniso = xr_settings_aniso(s->aniso);
+     if ((v = env(WM_ANISO))) { o->aniso = xr_settings_aniso(atoi(v)); k[WM_ANISO] = WM_SRC_ENV; }
+     {   const char *nm = getenv("LINDBERGH_VT3_SAVE_NAME");
+         if (!(nm && *nm && xr_settings_save_name(nm, o->save_name))) xr_settings_save_name(s->save_name, o->save_name); }
+-    if ((v = env(WM_MSAA))) { int n = atoi(v); o->msaa = n >= 4 ? 4 : n >= 2 ? 2 : 0; k[WM_MSAA] = WM_SRC_ENV; }
++    if ((v = env(WM_MSAA))) { o->msaa = xr_settings_msaa(atoi(v)); k[WM_MSAA] = WM_SRC_ENV; }
+     if ((v = env(WM_LANGUAGE))) { o->language = !(*v == '0' || !strcmp(v, "japanese")); k[WM_LANGUAGE] = WM_SRC_ENV; }
+     if ((v = env(WM_SKY))) { o->sky = world_mode_sky_value(v); k[WM_SKY] = WM_SRC_ENV; }
+     if (src) memcpy(src, k, sizeof k);
+@@ -157,19 +157,23 @@ static _Atomic(WmSwitchFn) g_switch_fn;
+ 
+ #ifdef LINDBERGH_OPENXR
+ /* which of the running mode's keys vr.cfg holds (for the [world] line) */
+-static unsigned file_present(int immersive)
++static unsigned file_present(int immersive, int file_mode)
+ {
+     FILE *f = fopen("vr.cfg", "r");
+     if (!f) f = fopen("../vr.cfg", "r");
+     if (!f) return 0;
+     unsigned bits = 0;
++    int has_msaa = 0;
+     char key[32], val[32];
+-    while (fscanf(f, "%31s %31s", key, val) == 2)
++    while (fscanf(f, "%31s %31s", key, val) == 2) {
++        if (!strcmp(key, "msaa")) has_msaa = 1;
+         for (int i = 0; i < WM_COUNT; i++) {
+             const char *a = KEY_CLASSIC[i], *b = KEY_IMMERSIVE[i];
+             if (i == WM_MODE ? !strcmp(key, "mode") : (immersive ? b && !strcmp(key, b) : a && !strcmp(key, a))) bits |= 1u << i;
+         }
++    }
+     fclose(f);
++    if (has_msaa && !(bits >> WM_MSAA & 1) && file_mode == immersive) bits |= 1u << WM_MSAA;
+     if (bits & (1u << WM_REPLAYS | 1u << WM_CUTAWAYS)) bits |= 1u << WM_REPLAYS | 1u << WM_CUTAWAYS;   /* one row, one value (xr_settings_load) */
+     return bits;
+ }
+@@ -187,7 +191,7 @@ void world_mode_init(int capable)
+     xr_settings_defaults(&s);               /* the game's own (Virtua Tennis 3: VR mode, ...) */
+     xr_settings_load(&s);                   /* the headset's stored settings (a scratch copy) */
+     world_mode_resolve(&s, -1, capable, 0, &g_wm, NULL);
+-    present = file_present(g_wm.immersive);
++    present = file_present(g_wm.immersive, s.world_mode);
+ #else
+     {   /* the desktop: only the game settings its Game menu writes to vr.cfg (host_menu_mac.m:
+          * save, save_name) - display settings stay the headset's */
+diff --git a/src/runtime/world_mode.h b/src/runtime/world_mode.h
+index ac93037..16824cc 100644
+--- a/src/runtime/world_mode.h
++++ b/src/runtime/world_mode.h
+@@ -38,7 +38,7 @@ typedef struct {
+     int card_notice;            /* the card reader's notice and boot wait: 0 (no panel row since 2026-11-13;
+                                  * vr.cfg classic.card_notice ignored); LINDBERGH_VT3_CARD_RW=1 for tests */
+     int language;               /* 1 English, 0 Japanese (vr.cfg language, LINDBERGH_VT3_LANGUAGE); on restart */
+-    int msaa;                   /* anti-aliasing samples asked for: 0, 2, 4 (vr.cfg msaa, LINDBERGH_MSAA); on restart */
++    int msaa;                   /* anti-aliasing samples asked for: 0, 2, 4 (vr.cfg classic.msaa / immersive.msaa, LINDBERGH_MSAA); on restart */
+     int save;                   /* Save progress: 1P's card record kept in vt3_save.bin (vr.cfg save, LINDBERGH_VT3_SAVE); on restart */
+     int aniso;                  /* anisotropic filtering of mipmapped world textures: 0 (off), 2, 4, 8, 16
+                                  * (vr.cfg aniso, LINDBERGH_ANISO); on restart */
+diff --git a/src/runtime/xr_settings.c b/src/runtime/xr_settings.c
+index cbb49d7..4ed2aec 100644
+--- a/src/runtime/xr_settings.c
++++ b/src/runtime/xr_settings.c
+@@ -35,7 +35,7 @@ static int render(const LgXrSettings *c, char *b, size_t n)
+                "sight %s\ncrosshair %s\ngun %s\nhud_pitch %d\ndual %s\nstats %s\nfoveation %s\noverlays %s\nreplays %s\n"
+                "mode %s\nclassic.shadow %d\nclassic.cutaways %s\nimmersive.replays %s\nimmersive.overlays %s\n"
+                "immersive.cutaways %s\nimmersive.sky %s\nimmersive.shadow %d\n"
+-               "immersive.height %d\nclassic.card_notice %s\nlanguage %s\nmsaa %d\nsave %s\naniso %d\nsave_name %s\n",
++               "immersive.height %d\nclassic.card_notice %s\nlanguage %s\nclassic.msaa %d\nimmersive.msaa %d\nsave %s\naniso %d\nsave_name %s\n",
+             c->scale, c->screen, c->aim, c->resolution, c->width, c->refresh, c->left_handed ? "left" : "right",
+             LASER_NAME[c->laser], c->auto_coins ? "auto" : "manual",
+             SIGHT_NAME[c->sight], c->crosshair ? "on" : "off", c->show_gun ? "on" : "off", c->hud_pitch, c->dual ? "on" : "off", c->show_stats ? "on" : "off",
+@@ -43,7 +43,8 @@ static int render(const LgXrSettings *c, char *b, size_t n)
+             c->world_mode ? "immersive" : "classic", c->classic_shadow, c->classic_cutaways ? "on" : "off",
+             view_name(c->imm_replays), c->imm_overlays ? "on" : "off", view_name(c->imm_cutaways),
+             c->imm_sky == LG_SKY_OFF ? "off" : c->imm_sky == LG_SKY_PAINTED ? "painted" : "stadium", c->imm_shadow,
+-            c->imm_height, c->classic_card_notice ? "on" : "off", c->language ? "english" : "japanese", c->msaa, c->save ? "on" : "off",
++            c->imm_height, c->classic_card_notice ? "on" : "off", c->language ? "english" : "japanese",
++            xr_settings_msaa(c->classic_msaa), xr_settings_msaa(c->imm_msaa), c->save ? "on" : "off",
+             xr_settings_aniso(c->aniso), c->save_name[0] ? c->save_name : LG_XR_SAVE_NAME_DEFAULT);
+     if (c->screen_size >= 0 && k >= 0 && (size_t)k < n)     /* a game with a Screen size row (VT3) */
+         k += snprintf(b + k, n - (size_t)k, "screen_size %s\n", SCREEN_SIZE_NAME[c->screen_size > 2 ? 2 : c->screen_size]);
+@@ -78,9 +79,9 @@ void xr_settings_vt3_defaults(struct LgXrSettings *c)
+ {
+     c->world_mode = 1;
+     c->imm_replays = c->imm_cutaways = LG_VIEW_FLAT; c->imm_overlays = 0; c->imm_sky = LG_SKY_STADIUM;
+-    c->imm_shadow = 4096; c->imm_height = 10;
++    c->imm_shadow = 4096; c->imm_height = 10; c->imm_msaa = 2;
+     c->replays = c->classic_cutaways = 1; c->arcade_overlays = 0; c->classic_shadow = 1024; c->classic_card_notice = 0;
+-    c->msaa = 2; c->aniso = 4; c->save = 1; snprintf(c->save_name, sizeof c->save_name, "%s", LG_XR_SAVE_NAME_DEFAULT);
++    c->classic_msaa = 0; c->aniso = 4; c->save = 1; snprintf(c->save_name, sizeof c->save_name, "%s", LG_XR_SAVE_NAME_DEFAULT);
+     c->language = 1; c->refresh = 120; c->foveation = 3; c->screen = 2.5f; c->hud_pitch = 10; c->show_stats = 0;
+     c->auto_coins = 1; c->screen_size = 1;
+ }
+@@ -90,6 +91,11 @@ int xr_settings_aniso(int v)
+     return v >= 16 ? 16 : v >= 8 ? 8 : v >= 4 ? 4 : v >= 2 ? 2 : 0;
+ }
+ 
++int xr_settings_msaa(int v)
++{
++    return v >= 4 ? 4 : v > 0 ? 2 : 0;
++}
++
+ /* LINDBERGH_XR_SET's keys are for its run only: the save writes those keys as
+  * the file had them (or the default), not the run's values */
+ static LgXrSettings g_file;         /* the settings as loaded, before LINDBERGH_XR_SET */
+@@ -124,14 +130,23 @@ void xr_settings_load(LgXrSettings *c)
+     if (!f) f = fopen("../vr.cfg", "r");    /* beside the game: where adb can put one */
+     char key[32], val[32];
+     int has_rep = 0, has_cut = 0, has_irep = 0, has_icut = 0, has_screen = 0, has_size = 0;
++    int has_cmsaa = 0, has_imsaa = 0, has_msaa = 0, legacy_msaa = 0;
+     const int sized = c->screen_size >= 0;      /* the game has a Screen size row */
+     while (f && fscanf(f, "%31s %31s", key, val) == 2) {
++        if (!strcmp(key, "msaa")) { legacy_msaa = atoi(val); has_msaa = 1; continue; }
+         xr_settings_set(c,key,val);
+         has_rep |= !strcmp(key, "replays"); has_cut |= !strcmp(key, "classic.cutaways");
+         has_irep |= !strcmp(key, "immersive.replays"); has_icut |= !strcmp(key, "immersive.cutaways");
+         has_screen |= !strcmp(key, "screen"); has_size |= !strcmp(key, "screen_size");
++        has_cmsaa |= !strcmp(key, "classic.msaa"); has_imsaa |= !strcmp(key, "immersive.msaa");
+     }
+     if (f) fclose(f);
++    /* An older file's single "msaa" key applies to the mode that file chose,
++     * leaving the other mode at its default (so Classic stays Off). */
++    if (has_msaa) {
++        if (c->world_mode && !has_imsaa) c->imm_msaa = legacy_msaa;
++        else if (!c->world_mode && !has_cmsaa) c->classic_msaa = legacy_msaa;
++    }
+     /* Replays and point cutaways are one row since 2026-11-13 ("Replays and
+      * reaction cams"): one value per mode, both old keys written with it. A file
+      * with the two different: the replays key's value (an older build's file);
+@@ -154,7 +169,10 @@ void xr_settings_load(LgXrSettings *c)
+     while (e && *e) {
+         if (sscanf(e, "%31[^=]=%31[^,]", key, val) == 2) {
+             xr_settings_set(c,key,val);
+-            if (g_nrun < 24) memcpy(g_run_keys[g_nrun++], key, sizeof key);
++            if (!strcmp(key, "msaa")) {
++                if (g_nrun < 24) snprintf(g_run_keys[g_nrun++], 32, "classic.msaa");
++                if (g_nrun < 24) snprintf(g_run_keys[g_nrun++], 32, "immersive.msaa");
++            } else if (g_nrun < 24) memcpy(g_run_keys[g_nrun++], key, sizeof key);
+         }
+         e = strchr(e, ',');
+         if (e) e++;
+@@ -177,7 +195,8 @@ void xr_settings_load(LgXrSettings *c)
+     if (c->imm_shadow != 1024 && c->imm_shadow != 2048 && c->imm_shadow != 4096) c->imm_shadow = d.imm_shadow;
+     if (c->imm_sky < LG_SKY_OFF || c->imm_sky > LG_SKY_PAINTED) c->imm_sky = d.imm_sky;
+     c->imm_dolly = d.imm_dolly; c->imm_back = d.imm_back;
+-    if (c->msaa != 0 && c->msaa != 2 && c->msaa != 4) c->msaa = c->msaa > 4 ? 4 : c->msaa > 0 ? 2 : 0;
++    c->classic_msaa = xr_settings_msaa(c->classic_msaa);
++    c->imm_msaa = xr_settings_msaa(c->imm_msaa);
+     c->aniso = xr_settings_aniso(c->aniso);
+     { char nm[16]; xr_settings_save_name(c->save_name, nm); memcpy(c->save_name, nm, sizeof nm); }
+     if (c->imm_replays < LG_VIEW_OFF || c->imm_replays > LG_VIEW_CAMERA) c->imm_replays = d.imm_replays;
+@@ -220,7 +239,9 @@ void xr_settings_set(LgXrSettings *c,const char *key,const char *val)
+         else if (!strcmp(key, "immersive.height")) c->imm_height = atoi(val);
+         else if (!strcmp(key, "classic.card_notice")) c->classic_card_notice = !strcmp(val, "on");
+         else if (!strcmp(key, "language")) c->language = strcmp(val, "japanese") != 0;
+-        else if (!strcmp(key, "msaa")) c->msaa = atoi(val);
++        else if (!strcmp(key, "classic.msaa")) c->classic_msaa = atoi(val);
++        else if (!strcmp(key, "immersive.msaa")) c->imm_msaa = atoi(val);
++        else if (!strcmp(key, "msaa")) c->classic_msaa = c->imm_msaa = atoi(val);
+         else if (!strcmp(key, "save")) c->save = !strcmp(val, "on");
+         else if (!strcmp(key, "aniso")) c->aniso = atoi(val);
+         else if (!strcmp(key, "screen_size")) c->screen_size = !strcmp(val, "small") ? 0 : !strcmp(val, "big") ? 2 : !strcmp(val, "medium") ? 1 : -2;
+diff --git a/src/runtime/xr_settings.h b/src/runtime/xr_settings.h
+index fc3568b..b64abcb 100644
+--- a/src/runtime/xr_settings.h
++++ b/src/runtime/xr_settings.h
+@@ -39,8 +39,8 @@ typedef struct LgXrSettings {
+                                  * read and written back unchanged so an older build's file stays as it was */
+     int language;               /* "language english|japanese": 1 English (the cabinet's region export), 0
+                                  * Japanese; applies on the next start (Virtua Tennis 3) */
+-    int msaa;                   /* "msaa 0|2|4": anti-aliasing samples of the eyes' framebuffer (VR and
+-                                 * Classic on the headset; 0 off; VT3's default 2x); applies on the next start */
++    int classic_msaa;           /* "classic.msaa 0|2|4": anti-aliasing samples of the eyes' framebuffer in
++                                 * Classic mode on the headset (0 off); applies on the next start */
+     int save;                   /* "save on|off": Save progress - 1P's card record kept in vt3_save.bin
+                                  * (Virtua Tennis 3, both modes; default on since T21 - absent = on, an
+                                  * explicit "save off" stays off); applies on the next start */
+@@ -56,6 +56,8 @@ typedef struct LgXrSettings {
+                                  * the Screen distance row as before, nothing written. Virtua Tennis 3: 1
+                                  * (Medium = the size before 2026-11-13); a file without the key takes it
+                                  * from its "screen" distance (xr_settings_screen_size_from) */
++    int imm_msaa;               /* "immersive.msaa 0|2|4": anti-aliasing samples of the eyes' framebuffer
++                                 * in VR mode (0 off; VT3's default 2x); applies on the next start */
+ } LgXrSettings;
+ /* Screen size Small / Medium / Big: the flat picture's width in degrees (Medium = the arcade's
+  * picture as it always was: lens 1.732, 60 degrees across) */
+@@ -87,7 +89,7 @@ int xr_settings_screen_size_from(float distance);
+  * xr_settings_vt3_defaults. (The stands' stretch,
+  * "immersive.stand_y", is gone: an old file's key is ignored and not written back.) */
+ #define LG_XR_SETTINGS_DEFAULT {1.0f,3.0f,15.0f,LG_XR_NATIVE_HEIGHT,LG_XR_NATIVE_WIDTH,120,0,LASER_ON,1,0,1,1,0,0,1,3,1,1, \
+-                                0,1024,1,0,0,0,200,50,LG_SKY_STADIUM,2048,10,0,1,0,1,0,LG_XR_SAVE_NAME_DEFAULT,-1}
++                                0,1024,1,0,0,0,200,50,LG_SKY_STADIUM,2048,10,0,1,0,1,0,LG_XR_SAVE_NAME_DEFAULT,-1,0}
+ /* Save progress's record name (save_name): Virtua Tennis 3's name entry
+  * takes up to 10 characters; letters and digits only (the font's, and one
+  * vr.cfg token) */
+@@ -119,10 +121,11 @@ void xr_settings_defaults(LgXrSettings *settings);
+ void xr_settings_set_game_defaults(void (*fn)(struct LgXrSettings *));
+ /* Virtua Tennis 3's defaults (the owner's Quest 3 settings, 2026-11-13): VR
+  * mode; VR: Replays and reaction cams Flat screen, overlays hidden, stadium sky,
+- * shadows 4096, Camera height Medium; Classic: Replays and reaction cams on,
+- * overlays hidden, shadows 1024, card notice off; both: anti-aliasing 2x,
+- * texture filtering 4x, save on, English, 120 Hz, foveation high, screen
+- * 2.5 m, HUD position 10, frame rate counter off, coins automatic */
++ * shadows 4096, Camera height Medium, anti-aliasing 2x; Classic: Replays and
++ * reaction cams on, overlays hidden, shadows 1024, card notice off,
++ * anti-aliasing Off; both: texture filtering 4x, save on, English, 120 Hz,
++ * foveation high, screen 2.5 m, HUD position 10, frame rate counter off, coins
++ * automatic */
+ void xr_settings_vt3_defaults(struct LgXrSettings *settings);
+ void xr_settings_load(LgXrSettings *settings);
+ void xr_settings_set(LgXrSettings *settings,const char *key,const char *value);
+@@ -132,6 +135,8 @@ void xr_settings_save(const LgXrSettings *settings);
+ int xr_settings_save_name(const char *in, char out[16]);
+ /* an anisotropy value as stored: 0 (off), 2, 4, 8 or 16 - others the nearest below (1 = 0) */
+ int xr_settings_aniso(int v);
++/* anti-aliasing samples as stored: 0 (off), 2 or 4 (1/3 -> 2, >4 -> 4, <0 -> 0) */
++int xr_settings_msaa(int v);
+ #ifdef __cplusplus
+ }
+ #endif
+diff --git a/src/runtime/xr_world_panel.c b/src/runtime/xr_world_panel.c
+index 6817ff0..f66b92f 100644
+--- a/src/runtime/xr_world_panel.c
++++ b/src/runtime/xr_world_panel.c
+@@ -8,14 +8,14 @@
+  * settings (the saved mode's page), then the shared rows; choosing a mode on
+  * an Advanced page shows that mode's page. Classic advanced: Replays
+  * and reaction cams (On / Off: replays and point cutaways, one row since 2026-11-13),
+- * arcade overlays, shadow quality. VR advanced: camera height (Low / Medium /
++ * arcade overlays, shadow quality, anti-aliasing. VR advanced: camera height (Low / Medium /
+  * High; your player at the far end is always High - stereo.c), the same
+  * (Replays and reaction cams Off / Flat screen / VR), sky (Stadium / Painted / Off),
+- * shadow quality; both: Save progress, Reset save (pull twice) and Texture
++ * shadow quality, anti-aliasing; both: Save progress, Reset save (pull twice) and Texture
+  * filtering (one value each for both modes, on restart; the main page is
+  * full). Camera closer and Step back are gone (fixed 20 m / 5 m,
+  * T12). Replays, cutaways, overlays, camera height and sky are live for the
+- * running mode; shadow quality and the mode apply on restart. A row whose env
++ * running mode; shadow quality, anti-aliasing and the mode apply on restart. A row whose env
+  * variable is set shows "(env.txt)" with the run's value and ignores clicks.
+  * With XwState.live (switching live, Phase B; host_xr.c keeps it 0 for now)
+  * the mode applies at once: no Restart now.
+@@ -65,7 +65,7 @@ static int pinned(const XwState *w, int item)
+ {
+     const int k = wm_key(item);
+     if (k < 0 || !(w->pins >> k & 1)) return 0;
+-    return k == WM_MODE || k == WM_LANGUAGE || k == WM_MSAA || k == WM_SAVE || k == WM_ANISO || page_mode(w) == w->running;
++    return k == WM_MODE || k == WM_LANGUAGE || k == WM_SAVE || k == WM_ANISO || page_mode(w) == w->running;
+ }
+ /* Replays and reaction cams: one row for both values (2026-11-13), pinned when either env variable is set */
+ static int pinned_rc(const XwState *w)
+@@ -81,22 +81,21 @@ int xw_page_rows(const XwState *w, const LgXrSettings *cfg, int *rows)
+     switch (w->page) {
+     case XW_PAGE_CLASSIC: {
+         static const int r[] = { XW_ROW(XW_BACK), XW_ROW(XW_REPLAYS), XW_ROW(XW_OVERLAYS),
+-                                 XW_ROW(XW_SAVE), XW_ROW(XW_RESET_SAVE), XW_ROW(XW_SHADOW), XW_ROW(XW_ANISO), XP_STATS, XW_ROW(XW_RESTORE), XP_CLOSE };
++                                 XW_ROW(XW_SAVE), XW_ROW(XW_RESET_SAVE), XW_ROW(XW_SHADOW), XW_ROW(XW_MSAA), XW_ROW(XW_ANISO), XW_ROW(XW_RESTORE), XP_CLOSE };
+         for (size_t i = 0; i < sizeof r / sizeof *r; i++) rows[n++] = r[i];
+         break; }
+     case XW_PAGE_IMMERSIVE: {
+         static const int r[] = { XW_ROW(XW_BACK), XW_ROW(XW_HEIGHT),
+                                  XW_ROW(XW_REPLAYS), XW_ROW(XW_OVERLAYS), XW_ROW(XW_SKY),
+-                                 XW_ROW(XW_SAVE), XW_ROW(XW_RESET_SAVE), XW_ROW(XW_SHADOW), XW_ROW(XW_ANISO), XP_STATS, XW_ROW(XW_RESTORE), XP_CLOSE };
++                                 XW_ROW(XW_SAVE), XW_ROW(XW_RESET_SAVE), XW_ROW(XW_SHADOW), XW_ROW(XW_MSAA), XW_ROW(XW_ANISO), XW_ROW(XW_RESTORE), XP_CLOSE };
+         for (size_t i = 0; i < sizeof r / sizeof *r; i++) rows[n++] = r[i];
+         break; }
+     default:
+         if (!w->live && cfg->world_mode != w->running && !pinned(w, XW_MODE)) rows[n++] = XW_ROW(XW_RESTART);
+         rows[n++] = XW_ROW(XW_ADVANCED);
+         rows[n++] = XW_ROW(XW_LANGUAGE);
+-        rows[n++] = XW_ROW(XW_MSAA);
+         for (int i = 0; i < XP_COUNT; i++)
+-            if (i != XP_STATS && i != XP_OVERLAYS && i != XP_REPLAYS) rows[n++] = i;
++            if (i != XP_OVERLAYS && i != XP_REPLAYS) rows[n++] = i;
+         break;
+     }
+     return n;
+@@ -163,9 +162,9 @@ void xw_items(const XwState *w, const LgXrSettings *cfg, XmItem *it)
+         snprintf(it[XW_SAVE].value, 40, "%s%s", on_off(v), !pinned(w, XW_SAVE) && v != w->eff.save ? " (on restart)" : "");
+     }
+     {
+-        const int m = pinned(w, XW_MSAA) ? w->eff.msaa : cfg->msaa;
++        const int m = pinned(w, XW_MSAA) ? w->eff.msaa : xr_settings_msaa(im ? cfg->imm_msaa : cfg->classic_msaa);
+         snprintf(it[XW_MSAA].value, 40, "%s%s", m >= 4 ? "4x" : m >= 2 ? "2x" : "Off",
+-                 !pinned(w, XW_MSAA) && m != w->eff.msaa ? " (on restart)" : "");
++                 !pinned(w, XW_MSAA) && page_mode(w) == w->running && m != w->eff.msaa ? " (on restart)" : "");
+     }
+     {   /* applies on the next start: "(on restart)" while the stored one is not the running one */
+         int lang = cfg->language;
+@@ -218,11 +217,11 @@ void xw_restore_defaults(LgXrSettings *c, int immersive)
+     if (immersive) {
+         c->imm_replays = d.imm_replays; c->imm_overlays = d.imm_overlays; c->imm_cutaways = d.imm_cutaways;
+         c->imm_height = d.imm_height;
+-        c->imm_sky = d.imm_sky; c->imm_shadow = d.imm_shadow;
++        c->imm_sky = d.imm_sky; c->imm_shadow = d.imm_shadow; c->imm_msaa = d.imm_msaa;
+         c->aniso = d.aniso;     /* Texture filtering: a row on both advanced pages (one value) */
+     } else {
+         c->replays = d.replays; c->arcade_overlays = d.arcade_overlays;
+-        c->classic_cutaways = d.classic_cutaways; c->classic_shadow = d.classic_shadow;
++        c->classic_cutaways = d.classic_cutaways; c->classic_shadow = d.classic_shadow; c->classic_msaa = d.classic_msaa;
+         c->aniso = d.aniso;
+     }
+ }
+@@ -267,7 +266,10 @@ unsigned xw_choose(XwState *w, LgXrSettings *c, int item)
+     case XW_CARD: return 0;     /* Card reader notice: no row since 2026-11-13 (always off; classic.card_notice ignored) */
+     case XW_LANGUAGE: c->language = !c->language; break;                                                     /* on restart */
+     case XW_SAVE: if (page_mode(w) < 0) return 0; c->save = !c->save; break;                               /* on restart */
+-    case XW_MSAA: c->msaa = c->msaa >= 4 ? 0 : c->msaa >= 2 ? 4 : 2; break;                                 /* Off > 2x > 4x, on restart */
++    case XW_MSAA: {
++        if (page_mode(w) < 0) return 0;
++        int *m = im ? &c->imm_msaa : &c->classic_msaa;
++        *m = *m >= 4 ? 0 : *m >= 2 ? 4 : 2; break; }                                 /* Off > 2x > 4x, on restart */
+     case XW_ANISO: c->aniso = next_step(xr_settings_aniso(c->aniso), LG_XR_ANISO_STEPS, LG_XR_ANISO_NSTEPS); break;   /* Standard > 4x > 8x, on restart */
+     case XW_SHADOW: {
+         int *s = im ? &c->imm_shadow : &c->classic_shadow, k = 0;
+diff --git a/src/runtime/xr_world_panel.h b/src/runtime/xr_world_panel.h
+index b0eda7f..f021e58 100644
+--- a/src/runtime/xr_world_panel.h
++++ b/src/runtime/xr_world_panel.h
+@@ -18,10 +18,10 @@ extern "C" {
+ enum { XW_MODE, XW_RESTART, XW_ADVANCED, XW_BACK, XW_DOLLY, XW_STEPBACK, XW_REPLAYS, XW_CUTAWAYS,
+        XW_OVERLAYS, XW_SKY, XW_SHADOW, XW_RESTORE, XW_HEIGHT, XW_MODE_CLASSIC, XW_MODE_VR,
+        XW_CARD, XW_LANGUAGE, XW_MSAA, XW_SAVE, XW_ANISO, XW_RESET_SAVE, XW_COUNT };
+-/* Classic's Card reader notice; the main page's Language and Anti-aliasing;
+- * both Advanced pages' Save progress and Texture filtering (one value each
+- * for both modes) - all on restart. Reset save (both Advanced pages, below Save
+- * progress): pull twice, like Restore defaults - returns XW_RESET_SAVE */
++/* the main page's Language; both Advanced pages' Anti-aliasing (per mode),
++ * Save progress and Texture filtering (one value each for both modes) - all
++ * on restart. Reset save (both Advanced pages, below Save progress): pull
++ * twice, like Restore defaults - returns XW_RESET_SAVE */
+ enum { XW_PAGE_MAIN, XW_PAGE_CLASSIC, XW_PAGE_IMMERSIVE, XW_PAGES };
+ /* xw_choose's effects, beside XP_SAVE and XP_RESTART */
+ enum { XW_LIVE_CHANGED = 1 << 16,      /* a live value of the running mode (or, live, the mode) changed: world_mode_update */
+@@ -44,9 +44,9 @@ typedef struct {
+ } XwState;
+ 
+ /* The rows of the current page, in order (XP_ ids or XW_ROW(x)); returns the
+- * count. The main page carries every XP_ item but Frame rate counter, Arcade
+- * overlays and Replays (on the Advanced pages here): the host still leaves
+- * out rows its game has no use for. */
++ * count. The main page carries every XP_ item but Arcade overlays and Replays
++ * (on the Advanced pages here): the host still leaves out rows its game has
++ * no use for. */
+ int xw_page_rows(const XwState *w, const LgXrSettings *cfg, int *rows);
+ /* The line under the mode buttons: which mode runs, and whether the choice
+  * waits for a restart (or is pinned by env.txt) */
+diff --git a/tests/test_world_mode.py b/tests/test_world_mode.py
+index ce9f73c..75cd9cc 100644
+--- a/tests/test_world_mode.py
++++ b/tests/test_world_mode.py
+@@ -145,14 +145,21 @@ int main(int argc, char **argv) {
+         self.assertEqual(sv(None, {"LINDBERGH_VT3_SAVE": "1"}), "1 1 1")
+         self.assertIn("save on (vr.cfg)", self.run_wm("save on\n")[1])
+         self.assertEqual(m(), "0 0 0")                                                   # Off by default (T17)
+-        self.assertEqual(m("msaa 4\n"), "4 0 4")
+-        self.assertEqual(m("mode immersive\nmsaa 2\n"), "2 0 2")                         # one value for both modes
+-        self.assertEqual(m("msaa 3\n"), "2 0 2")                                         # off the list: the nearer below
+-        self.assertEqual(m("msaa 16\n"), "4 0 4")
+-        self.assertEqual(m("msaa 4\n", {"LINDBERGH_MSAA": "0"}), "0 1 0")               # env wins, pinned
++        self.assertEqual(m("classic.msaa 4\n"), "4 0 4")
++        self.assertEqual(m("mode immersive\nclassic.msaa 4\nimmersive.msaa 2\n"), "2 0 2")  # per-mode
++        self.assertEqual(m("classic.msaa 4\nimmersive.msaa 2\n"), "4 0 4")
++        self.assertEqual(m("mode immersive\nclassic.msaa 4\n"), "0 0 0")
++        self.assertEqual(m("msaa 4\n"), "4 0 4")                                         # legacy single key -> file's mode
++        self.assertEqual(m("mode immersive\nmsaa 2\n"), "2 0 2")
++        self.assertEqual(m("mode immersive\nmsaa 2\n", {"LINDBERGH_VT3_IMMERSIVE": "0"}), "0 0 0")
++        self.assertEqual(m("classic.msaa 3\n"), "2 0 2")                                 # off the list: the nearer below
++        self.assertEqual(m("classic.msaa 16\n"), "4 0 4")
++        self.assertEqual(m("classic.msaa 4\n", {"LINDBERGH_MSAA": "0"}), "0 1 0")       # env wins, pinned
+         self.assertEqual(m(None, {"LINDBERGH_MSAA": "2"}), "2 1 2")
+-        _, log = self.run_wm("msaa 4\n")
++        _, log = self.run_wm("classic.msaa 4\n")
+         self.assertIn("msaa 4 (vr.cfg)", log)
++        _, log = self.run_wm("mode immersive\nclassic.msaa 4\n")
++        self.assertIn("msaa 0 (default)", log)
+         _, log = self.run_wm()
+         self.assertIn("msaa 0 (default)", log)
+ 
+diff --git a/tests/test_xr_settings.py b/tests/test_xr_settings.py
+index 6a1a708..2b5cfe7 100644
+--- a/tests/test_xr_settings.py
++++ b/tests/test_xr_settings.py
+@@ -61,7 +61,7 @@ int main(void) {
+ 
+     MODE_KEYS={"mode":"classic","classic.shadow":"1024","classic.cutaways":"on","immersive.replays":"off",
+                "immersive.overlays":"off","immersive.cutaways":"off","immersive.sky":"stadium","immersive.shadow":"2048",
+-               "immersive.height":"10","classic.card_notice":"off","language":"english","msaa":"0","save":"on",
++               "immersive.height":"10","classic.card_notice":"off","language":"english","classic.msaa":"0","immersive.msaa":"0","save":"on",
+                "aniso":"0","save_name":"PLAYER"}
+ 
+     @staticmethod
+@@ -83,7 +83,7 @@ int main(void) {
+     def test_mode_keys_round_trip(self):
+         cfg={"mode":"immersive","classic.shadow":"4096","classic.cutaways":"off","immersive.replays":"camera",
+              "immersive.overlays":"on","immersive.cutaways":"camera","immersive.sky":"painted","immersive.shadow":"1024",
+-             "immersive.height":"10","classic.card_notice":"on","language":"japanese","msaa":"4","save":"on",
++             "immersive.height":"10","classic.card_notice":"on","language":"japanese","classic.msaa":"2","immersive.msaa":"4","save":"on",
+              "aniso":"8","save_name":"RALLY"}
+         with tempfile.TemporaryDirectory() as d:
+             (Path(d)/"vr.cfg").write_text("".join(f"{k} {v}\n" for k,v in cfg.items()))
+@@ -94,11 +94,23 @@ int main(void) {
+             self.assertEqual((Path(d)/"vr.cfg").read_text(),first)
+ 
+     def test_msaa_off_the_list(self):
+-        for stored,want in (("2","2"),("3","2"),("1","2"),("8","4"),("-1","0"),("bogus","0")):
+-            with tempfile.TemporaryDirectory() as d:
+-                (Path(d)/"vr.cfg").write_text(f"msaa {stored}\n")
+-                self.run_settings(d)
+-                self.assertEqual(self.parse((Path(d)/"vr.cfg").read_text())["msaa"],want,stored)
++        for key in ("classic.msaa","immersive.msaa"):
++            for stored,want in (("2","2"),("3","2"),("1","2"),("8","4"),("-1","0"),("bogus","0")):
++                with tempfile.TemporaryDirectory() as d:
++                    (Path(d)/"vr.cfg").write_text(f"{key} {stored}\n")
++                    self.run_settings(d)
++                    self.assertEqual(self.parse((Path(d)/"vr.cfg").read_text())[key],want,(key,stored))
++        # an older file's single "msaa" goes to that file's mode, leaving the other mode at its default
++        with tempfile.TemporaryDirectory() as d:
++            (Path(d)/"vr.cfg").write_text("mode classic\nmsaa 4\n")
++            self.run_settings(d,{"VT3":"1"})
++            saved=self.parse((Path(d)/"vr.cfg").read_text())
++            self.assertEqual(saved["classic.msaa"],"4");self.assertEqual(saved["immersive.msaa"],"2")
++        with tempfile.TemporaryDirectory() as d:
++            (Path(d)/"vr.cfg").write_text("mode immersive\nmsaa 4\n")
++            self.run_settings(d,{"VT3":"1"})
++            saved=self.parse((Path(d)/"vr.cfg").read_text())
++            self.assertEqual(saved["classic.msaa"],"0");self.assertEqual(saved["immersive.msaa"],"4")
+ 
+     def test_aniso_off_the_list(self):
+         for stored,want in (("4","4"),("16","16"),("3","2"),("1","0"),("12","8"),("64","16"),("-1","0"),("bogus","0")):
+@@ -116,12 +128,17 @@ int main(void) {
+                 self.run_settings(d)
+                 self.assertEqual(self.parse((Path(d)/"vr.cfg").read_text())["save_name"],want,stored)
+ 
+-    # Virtua Tennis 3's defaults (2026-11-13): the owner's Quest 3 vr.cfg, less device / gun-game values
++    # Virtua Tennis 3's defaults: VR mode with 2x MSAA, Classic mode with MSAA Off
++    OWNER_LEGACY=("scale 1\nscreen 2.5\naim 15\nresolution 2208\nwidth 2064\nrefresh 120\nhand right\nlaser laser\ncoins auto\n"
++                  "sight none\ncrosshair on\ngun on\nhud_pitch 10\ndual off\nstats off\nfoveation high\noverlays off\nreplays on\n"
++                  "mode immersive\nclassic.shadow 1024\nclassic.cutaways on\nimmersive.replays flat\nimmersive.overlays off\n"
++                  "immersive.cutaways flat\nimmersive.sky stadium\nimmersive.shadow 4096\nimmersive.height 10\nclassic.card_notice off\n"
++                  "language english\nmsaa 2\nsave on\naniso 4\nsave_name PLAYER\n")
+     OWNER=("scale 1\nscreen 2.5\naim 15\nresolution 2208\nwidth 2064\nrefresh 120\nhand right\nlaser laser\ncoins auto\n"
+            "sight none\ncrosshair on\ngun on\nhud_pitch 10\ndual off\nstats off\nfoveation high\noverlays off\nreplays on\n"
+            "mode immersive\nclassic.shadow 1024\nclassic.cutaways on\nimmersive.replays flat\nimmersive.overlays off\n"
+            "immersive.cutaways flat\nimmersive.sky stadium\nimmersive.shadow 4096\nimmersive.height 10\nclassic.card_notice off\n"
+-           "language english\nmsaa 2\nsave on\naniso 4\nsave_name PLAYER\n")
++           "language english\nclassic.msaa 0\nimmersive.msaa 2\nsave on\naniso 4\nsave_name PLAYER\nscreen_size medium\n")
+ 
+     def test_vt3_defaults_are_the_owners_settings(self):
+         with tempfile.TemporaryDirectory() as d:
+@@ -133,12 +150,12 @@ int main(void) {
+ 
+     def test_vt3_owner_file_reads_back_identically(self):
+         with tempfile.TemporaryDirectory() as d:
+-            (Path(d)/"vr.cfg").write_text(self.OWNER)
++            (Path(d)/"vr.cfg").write_text(self.OWNER_LEGACY)
+             self.run_settings(d,{"VT3":"1"})
+-            # the same, plus Screen size (2026-11-13): his 2.5 m reads as Medium
+-            self.assertEqual((Path(d)/"vr.cfg").read_text(),self.OWNER+"screen_size medium\n")
++            # older file's msaa 2 goes to immersive.msaa; Classic stays Off; 2.5 m reads as Medium
++            self.assertEqual((Path(d)/"vr.cfg").read_text(),self.OWNER)
+             self.run_settings(d,{"VT3":"1"})
+-            self.assertEqual((Path(d)/"vr.cfg").read_text(),self.OWNER+"screen_size medium\n")
++            self.assertEqual((Path(d)/"vr.cfg").read_text(),self.OWNER)
+ 
+     def test_vt3_screen_size(self):
+         # an older file's Screen distance picks the size: 2 m Big, 2.5 - 3 m Medium, 4 - 5 m Small; no screen key = Medium
+@@ -162,16 +179,16 @@ int main(void) {
+ 
+     def test_vt3_explicit_values_kept_and_other_games_unchanged(self):
+         with tempfile.TemporaryDirectory() as d:
+-            (Path(d)/"vr.cfg").write_text("mode classic\nmsaa 0\naniso 0\nimmersive.shadow 2048\nstats on\nscreen 3\nimmersive.replays camera\n")
++            (Path(d)/"vr.cfg").write_text("mode classic\nclassic.msaa 4\nimmersive.msaa 0\naniso 0\nimmersive.shadow 2048\nstats on\nscreen 3\nimmersive.replays camera\n")
+             self.run_settings(d,{"VT3":"1"})
+             saved=self.parse((Path(d)/"vr.cfg").read_text())
+-            for k,v in (("mode","classic"),("msaa","0"),("aniso","0"),("immersive.shadow","2048"),("stats","on"),("screen","3"),
++            for k,v in (("mode","classic"),("classic.msaa","4"),("immersive.msaa","0"),("aniso","0"),("immersive.shadow","2048"),("stats","on"),("screen","3"),
+                         ("immersive.replays","camera"),("immersive.cutaways","camera"),("overlays","off")):
+                 self.assertEqual(saved[k],v,k)
+         with tempfile.TemporaryDirectory() as d:     # no game defaults (hotd4, gse, lgj): every game's, as before
+             self.run_settings(d)
+             saved=self.parse((Path(d)/"vr.cfg").read_text())
+-            for k,v in (("mode","classic"),("msaa","0"),("aniso","0"),("immersive.shadow","2048"),("stats","on"),("screen","3"),
++            for k,v in (("mode","classic"),("classic.msaa","0"),("immersive.msaa","0"),("aniso","0"),("immersive.shadow","2048"),("stats","on"),("screen","3"),
+                         ("immersive.replays","off"),("overlays","on"),("hud_pitch","0")):
+                 self.assertEqual(saved[k],v,k)
+ 
+diff --git a/tests/test_xr_world_panel.py b/tests/test_xr_world_panel.py
+index e87ca56..d747f6f 100644
+--- a/tests/test_xr_world_panel.py
++++ b/tests/test_xr_world_panel.py
+@@ -28,11 +28,11 @@ int main(void) {
+     world_mode_resolve(&c, 0, 1, 0, &w.eff, NULL);
+     int r[XW_ROWS_MAX], n;
+     XmItem it[XW_COUNT];
+-    /* main page, Classic running: the Classic / VR buttons, Advanced, the shared rows less stats/overlays/replays; no Restart */
++    /* main page, Classic running: the Classic / VR buttons, Advanced, Frame rate counter, the shared rows less overlays/replays; no Restart */
+     n = xw_page_rows(&w, &c, r);
+     assert(r[0] == XW_ROW(XW_MODE_CLASSIC) && r[1] == XW_ROW(XW_MODE_VR) && r[2] == XW_ROW(XW_ADVANCED) && !has(r, n, XW_ROW(XW_RESTART)));
+-    assert(!has(r, n, XW_ROW(XW_MODE)) && !has(r, n, XW_ROW(XW_DOLLY)) && !has(r, n, XW_ROW(XW_STEPBACK)));
+-    assert(!has(r, n, XP_STATS) && !has(r, n, XP_OVERLAYS) && !has(r, n, XP_REPLAYS) && has(r, n, XP_RESET) && r[n - 1] == XP_CLOSE);
++    assert(!has(r, n, XW_ROW(XW_MODE)) && !has(r, n, XW_ROW(XW_DOLLY)) && !has(r, n, XW_ROW(XW_STEPBACK)) && !has(r, n, XW_ROW(XW_MSAA)));
++    assert(has(r, n, XP_STATS) && !has(r, n, XP_OVERLAYS) && !has(r, n, XP_REPLAYS) && has(r, n, XP_RESET) && r[n - 1] == XP_CLOSE);
+     assert(n <= XW_ROWS_MAX && n - 6 + 1 <= XM_MODE_ROWS);     /* minus the gun rows a lever cabinet drops, plus Restart */
+     xw_items(&w, &c, it);
+     assert(!strcmp(it[XW_MODE_CLASSIC].label, "Classic") && !strcmp(it[XW_MODE_CLASSIC].value, "selected"));
+@@ -52,7 +52,7 @@ int main(void) {
+     /* Advanced goes to the saved mode's page */
+     assert(xw_choose(&w, &c, XW_ADVANCED) == XW_PAGE_CHANGED && w.page == XW_PAGE_IMMERSIVE);
+     n = xw_page_rows(&w, &c, r);
+-    assert(n == 14 && !has(r, n, XW_ROW(XW_CUTAWAYS)) && r[0] == XW_ROW(XW_MODE_CLASSIC) && r[2] == XW_ROW(XW_BACK) && r[3] == XW_ROW(XW_HEIGHT) && has(r, n, XP_STATS) && r[n - 1] == XP_CLOSE);
++    assert(n == 14 && !has(r, n, XW_ROW(XW_CUTAWAYS)) && r[0] == XW_ROW(XW_MODE_CLASSIC) && r[2] == XW_ROW(XW_BACK) && r[3] == XW_ROW(XW_HEIGHT) && !has(r, n, XP_STATS) && has(r, n, XW_ROW(XW_MSAA)) && r[n - 1] == XP_CLOSE);
+     assert(!has(r, n, XW_ROW(XW_DOLLY)) && !has(r, n, XW_ROW(XW_STEPBACK)));
+     xw_items(&w, &c, it);
+     assert(!strcmp(xw_title(&w), "VR mode - advanced settings"));
+@@ -98,7 +98,7 @@ int main(void) {
+     fx = xw_choose(&w, &c, XW_REPLAYS); assert((fx & XW_LIVE_CHANGED) && c.classic_cutaways == 0 && c.replays == 0);
+     xw_choose(&w, &c, XW_REPLAYS); assert(c.classic_cutaways == 1 && c.replays == 1);
+     n = xw_page_rows(&w, &c, r);
+-    assert(n == 12 && !has(r, n, XW_ROW(XW_CUTAWAYS)) && !has(r, n, XW_ROW(XW_CARD)) && !has(r, n, XW_ROW(XW_DOLLY)) && !has(r, n, XW_ROW(XW_SKY)));
++    assert(n == 12 && !has(r, n, XP_STATS) && has(r, n, XW_ROW(XW_MSAA)) && !has(r, n, XW_ROW(XW_CUTAWAYS)) && !has(r, n, XW_ROW(XW_CARD)) && !has(r, n, XW_ROW(XW_DOLLY)) && !has(r, n, XW_ROW(XW_SKY)));
+     assert(xw_choose(&w, &c, XW_SKY) == 0);             /* not a Classic row */
+     w.pins = 1u << WM_REPLAYS; w.eff.replays = 0;
+     xw_items(&w, &c, it); assert(!strcmp(it[XW_REPLAYS].value, "Off (env.txt)"));
+@@ -134,25 +134,30 @@ int main(void) {
+       lw.pins = 1u << WM_LANGUAGE; lw.eff.language = 1;
+       xw_items(&lw, &lc, it); assert(!strcmp(it[XW_LANGUAGE].value, "English (env.txt)"));
+       assert(xw_choose(&lw, &lc, XW_LANGUAGE) == 0); }
+-    /* Anti-aliasing on the main page (both modes), Off by default, Off > 2x > 4x > Off, on restart (T17) */
++    /* Anti-aliasing on both Advanced pages (per mode; not on main), Classic Off / VR 2x for VT3, Off > 2x > 4x > Off, on restart */
+     { XwState aw; memset(&aw, 0, sizeof aw); LgXrSettings ac = LG_XR_SETTINGS_DEFAULT;
+       world_mode_resolve(&ac, 0, 1, 0, &aw.eff, NULL);
+       int ar[XW_ROWS_MAX], an = xw_page_rows(&aw, &ac, ar);
+-      assert(has(ar, an, XW_ROW(XW_MSAA)) && ac.msaa == 0 && aw.eff.msaa == 0);
+-      aw.page = XW_PAGE_CLASSIC; an = xw_page_rows(&aw, &ac, ar); assert(!has(ar, an, XW_ROW(XW_MSAA)));
+-      aw.page = XW_PAGE_IMMERSIVE; an = xw_page_rows(&aw, &ac, ar); assert(!has(ar, an, XW_ROW(XW_MSAA)));
+-      aw.page = XW_PAGE_MAIN;
++      assert(!has(ar, an, XW_ROW(XW_MSAA)) && ac.classic_msaa == 0 && ac.imm_msaa == 0 && aw.eff.msaa == 0);
++      assert(xw_choose(&aw, &ac, XW_MSAA) == 0);
++      aw.page = XW_PAGE_CLASSIC; an = xw_page_rows(&aw, &ac, ar); assert(has(ar, an, XW_ROW(XW_MSAA)));
+       xw_items(&aw, &ac, it); assert(!strcmp(it[XW_MSAA].label, "Anti-aliasing") && !strcmp(it[XW_MSAA].value, "Off"));
+-      assert(xw_choose(&aw, &ac, XW_MSAA) == XP_SAVE && ac.msaa == 2);
++      assert(xw_choose(&aw, &ac, XW_MSAA) == XP_SAVE && ac.classic_msaa == 2 && ac.imm_msaa == 0);
+       xw_items(&aw, &ac, it); assert(!strcmp(it[XW_MSAA].value, "2x (on restart)"));
+-      assert(xw_choose(&aw, &ac, XW_MSAA) == XP_SAVE && ac.msaa == 4);
++      assert(xw_choose(&aw, &ac, XW_MSAA) == XP_SAVE && ac.classic_msaa == 4);
+       xw_items(&aw, &ac, it); assert(!strcmp(it[XW_MSAA].value, "4x (on restart)"));
+       aw.eff.msaa = 4; xw_items(&aw, &ac, it); assert(!strcmp(it[XW_MSAA].value, "4x"));
+-      assert(xw_choose(&aw, &ac, XW_MSAA) == XP_SAVE && ac.msaa == 0);
++      assert(xw_choose(&aw, &ac, XW_MSAA) == XP_SAVE && ac.classic_msaa == 0);
+       xw_items(&aw, &ac, it); assert(!strcmp(it[XW_MSAA].value, "Off (on restart)"));
++      aw.page = XW_PAGE_IMMERSIVE; an = xw_page_rows(&aw, &ac, ar); assert(has(ar, an, XW_ROW(XW_MSAA)));
++      xw_items(&aw, &ac, it); assert(!strcmp(it[XW_MSAA].value, "Off"));   /* non-running mode: no "(on restart)" */
++      assert(xw_choose(&aw, &ac, XW_MSAA) == XP_SAVE && ac.imm_msaa == 2 && ac.classic_msaa == 0);
+       aw.pins = 1u << WM_MSAA; aw.eff.msaa = 2;
++      xw_items(&aw, &ac, it); assert(!strcmp(it[XW_MSAA].value, "2x"));    /* pin is the running mode's only */
++      assert(xw_choose(&aw, &ac, XW_MSAA) == XP_SAVE && ac.imm_msaa == 4);
++      aw.page = XW_PAGE_CLASSIC;
+       xw_items(&aw, &ac, it); assert(!strcmp(it[XW_MSAA].value, "2x (env.txt)"));
+-      assert(xw_choose(&aw, &ac, XW_MSAA) == 0 && ac.msaa == 0); }
++      assert(xw_choose(&aw, &ac, XW_MSAA) == 0 && ac.classic_msaa == 0); }
+     /* Save progress on both Advanced pages (one value), On by default (T21), on restart; not on the main page (T16) */
+     { XwState sw; memset(&sw, 0, sizeof sw); LgXrSettings sc = LG_XR_SETTINGS_DEFAULT;
+       world_mode_resolve(&sc, 0, 1, 0, &sw.eff, NULL);
+@@ -212,9 +217,9 @@ int main(void) {
+       tc.aniso = 4;
+       xr_settings_set_game_defaults(xr_settings_vt3_defaults);   /* Virtua Tennis 3's Restore defaults */
+       { LgXrSettings v; memset(&v, 0, sizeof v); xw_restore_defaults(&v, 1);
+-        assert(v.imm_replays == LG_VIEW_FLAT && v.imm_cutaways == LG_VIEW_FLAT && v.imm_shadow == 4096 && v.imm_height == 10 && v.aniso == 4 && !v.imm_overlays);
++        assert(v.imm_replays == LG_VIEW_FLAT && v.imm_cutaways == LG_VIEW_FLAT && v.imm_shadow == 4096 && v.imm_height == 10 && v.imm_msaa == 2 && v.aniso == 4 && !v.imm_overlays);
+         memset(&v, 0, sizeof v); xw_restore_defaults(&v, 0);
+-        assert(v.replays == 1 && v.classic_cutaways == 1 && v.arcade_overlays == 0 && v.classic_shadow == 1024 && v.aniso == 4); }
++        assert(v.replays == 1 && v.classic_cutaways == 1 && v.arcade_overlays == 0 && v.classic_shadow == 1024 && v.classic_msaa == 0 && v.aniso == 4); }
+       xr_settings_set_game_defaults(NULL);
+       tw.pins = 1u << WM_ANISO; tw.eff.aniso = 16;
+       xw_items(&tw, &tc, it); assert(!strcmp(it[XW_ANISO].value, "Sharp 16x (env.txt)"));
