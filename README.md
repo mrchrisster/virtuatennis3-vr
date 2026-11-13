@@ -37,9 +37,13 @@ In VR:
 - **Camera height** Low / Medium / High, raised automatically when your
   player changes ends to the far side; **Step back** and **Camera closer**
   place you where you like.
-- **Replays and point cutaways** (the winner's reaction close-up): in VR from
-  the broadcast camera's angle with soft fades between shots (*Camera view*,
-  experimental), on a flat screen, or off.
+- **Replays and reaction cams** (one setting: replays, the winner's reaction
+  close-up and the match's other camera scenes): on a flat screen (default),
+  in VR from the broadcast camera's angle with soft fades between shots
+  (*VR*, experimental), or off.
+- **Starts in VR** with the settings the developer plays with on a Quest 3
+  (anti-aliasing 2x, texture filtering 4x, shadows 4096, 120 Hz); lower
+  them in the panel on a Quest 3S / Quest Pro if the frame rate suffers.
 
 Both modes:
 
@@ -50,7 +54,7 @@ Both modes:
   Off / 2x / 4x and texture filtering Standard / Sharp 4x / Sharp 8x (both
   experimental).
 - **No card needed**: the card-reader notices are gone (a Classic row brings
-  them back), and **Save progress** (experimental, off by default) keeps your
+  them back), and **Save progress** (experimental, on by default) keeps your
   career between sessions the way the arcade's player card did. **Reset
   save** starts over; the old save is kept as a backup.
 - **Language**: English (default) or Japanese.
