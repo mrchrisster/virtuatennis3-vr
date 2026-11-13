@@ -168,6 +168,21 @@ halves the rate). If any T-run fails, `adb install -r` a build of the
 committed submodule (or keep the `fade8ac` APK) before handing back.
 
 **Checkpoint log (build worker, newest first):**
+- **2026-11-13 Arcade Test / Service rows removed for VT3 COMMITTED (submodule
+  bd68848 + outer games/vt3/src/host.c).** Owner: "Arcade test button crashes
+  the game and arcade service button don't work". Cause (macOS round0, Test
+  tapped at frame 4300, `/tmp/vt3w14/testkey`): `[cab] buttons 0x4` then
+  `[crt] main returned 9`, process exits (the cabinet's hand-over to its test
+  menu) - parked in the backlog, not fixed. Profile flag `no_test_buttons`
+  (VT3 only): `xp_row_shown` (xr_panel.c) hides XP_TEST / XP_SERVICE in
+  `menu_rows` (enum kept, XP_COUNT == XM_ROWS), desktop T / S ignored
+  (`host_sdl.c cabinet_action`) and left out of the macOS Controls menu. No
+  Quest chord existed. After (`/tmp/vt3w14/testkey2`): T at 4300, S at 4400,
+  the game played on. Unit tests 86 OK (test_xr_panel: xp_row_shown cases).
+  Vulkan host panel (gun games) unchanged. Unreachable test-menu settings a
+  player might want: DIFFICULTY, MATCH COUNT (CPU / VS / DBL), DEUCE (also
+  DOUBLES, EVENT MODE) - owner to decide on panel rows. Quest APK built.
+  Picture `$VT3_PICS/vt3-view/panel_0_no_test_rows.png`.
 - **2026-11-13 start-up screen V3 COMMITTED (outer only, owner's three changes).**
   `quest/tools/vt3_splash.py`: TOP SPIN joins LOB / SLICE as one legend in the
   middle (top to bottom = trigger, Y/B, X/A; level leaders to both hands; the

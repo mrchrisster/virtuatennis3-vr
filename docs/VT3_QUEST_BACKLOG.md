@@ -90,6 +90,12 @@ and asked that all progress and research be written to the docs.
       panel (older note).
 
 ## Later / parked
+- [ ] **Arcade test menu crashes** (parked, 2026-11-13): Test makes VT3 leave
+      its main loop - `[crt] main returned 9` right after `[cab] ... buttons
+      0x4` (macOS) - the cabinet's hand-over to the test menu; the app closes.
+      Not fixed; the rows / keys are hidden instead. Unreachable settings that a
+      player might want (owner to decide): DIFFICULTY, MATCH COUNT (CPU / VS /
+      DBL), DEUCE (+ DOUBLES, EVENT MODE). Guide 7.5.
 - [ ] **Spectators missing near the viewer in Immersive** (parked by the
       owner 2026-11-11: "probably a game setting and can be ignored for
       now"). The stands at the viewer's own end and the near side stands
@@ -134,6 +140,10 @@ and asked that all progress and research be written to the docs.
 - [x] **Camera height stayed High back at the near end** (2026-11-13, owner's
       item 4): the end is re-read every point (guide 8). macOS-verified over
       three far/near cycles; Quest run owed; tie-breaks not run.
+- [x] **Arcade Test / Service rows removed for VT3** (2026-11-13, owner: "Arcade
+      test button crashes the game and arcade service button don't work"):
+      profile flag `no_test_buttons`, rows hidden (other games keep them),
+      desktop T / S keys ignored and left out of Controls. Guide 7.5.
 - [x] **Start-up screen V3** (2026-11-13, owner: "top spin text can also be in
       the middle ... VR should be at the top right of the logo and should be
       orange ... get rid of the grey text sub descriptions"): TOP SPIN / LOB /

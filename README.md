@@ -217,7 +217,8 @@ On the Quest the left menu button opens the settings panel; its choices are
 kept in `vt3_Lindbergh/vr.cfg` on the headset. Any setting can be forced with
 a `NAME=value` line in `/sdcard/VirtuaTennis3/env.txt` (the panel then shows
 "(env.txt)"); on macOS the same `LINDBERGH_*` switches are environment
-variables. The full list is in [the porting guide](docs/VT3_PORTING_GUIDE.md).
+variables. The arcade's Test / Service switches are not offered: the
+game's operator test menu cannot be reached (Test closed the game). The full list is in [the porting guide](docs/VT3_PORTING_GUIDE.md).
 
 ## Layout
 

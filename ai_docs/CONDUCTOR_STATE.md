@@ -387,3 +387,10 @@ turning the head, frame rate at 72/90/120 Hz, the new stands and sky.
   literal "MOVE" variant rendered for the owner to choose (`--labels literal`).
 - Renders: $VT3_PICS/vt3-splash/V3_*. macOS build + unit tests OK, Quest APK
   built. Next: install + launch check, then the arcade test/service rows item.
+
+## 2026-11-13 ~10:25 (build worker: Arcade Test / Service rows)
+- VT3 panel without Arcade Test / Service rows (profile flag
+  no_test_buttons, submodule bd68848; both trees pin it); desktop T / S
+  ignored for VT3. Test's "crash" = the game's main returning 9 (parked).
+- Headset NOT installed: worn and playing VT3 at ~10:10 (HEADSET_MOUNTED,
+  app running). APKs ready: /tmp/vt3q/V3/.
