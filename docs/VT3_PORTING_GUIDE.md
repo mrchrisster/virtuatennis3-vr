@@ -34,11 +34,11 @@ From `<workspace>/vt3/extracted/disk0/game` and `vt3rc`:
 ### 2.2 ELF Executables Comparison (`with debug_info, not stripped`)
 Inside `disk0/vt3_Lindbergh/`, there are four main game executables (all **6,543,267 bytes**, 32-bit x86 SYSV ELF, dynamically linked, **not stripped**, with full C++ symbols and DWARF debug info!):
 
-| Executable | SHA-256 | Exact Binary Differences |
+| Executable | SHA-256 | Behaviour |
 | :--- | :--- | :--- |
-| `vt3_Lindbergh_VGA` | `c10d3a572be39996516fa513ab51a810266bcdd284c55d244094997bcebb3b5d` | Defaults to **640x480** unless DIP switch bits (`0xE0`) are set; skips the widescreen override via `jmp 0x8175b23` at `0x08175b03`. |
-| `vt3_Lindbergh_HD` | `4bc1ff1735b382f9dd6246656cdeaa3260193283aa494d3e745ad83655d3c9aa` | Patched at 2 locations:<br>1. `0x08175b03` (`tennis::initializeSystem`): `eb 1e` -> `90 90` (NOPs out the jump so it unconditionally writes width `0x550` = **1360**, height `0x300` = **768**, mode `2` to `0x088bbe68`/`0x088bbe6c`).<br>2. `0x0831c63c` (`amDipswGetData`): forces DIP switch return byte to `0xE0`. |
-| `vt3_Lindbergh_FULLHD` / `vt3_Lindbergh` | `556729756c9160c4a5b1c6ed0c2674d7363a936b4ca91f5e2661494a55eb66a2` | Same as `vt3_Lindbergh_HD`, except the immediate constants at `0x08175b0b` and `0x08175b15` are patched from `1360x768` (`0x550 x 0x300`) to `1920x1080` (`0x780 x 0x438`). |
+| `vt3_Lindbergh_VGA` | `c10d3a572be39996516fa513ab51a810266bcdd284c55d244094997bcebb3b5d` | **640x480** unless the cabinet's DIP switches select widescreen. |
+| `vt3_Lindbergh_HD` | `4bc1ff1735b382f9dd6246656cdeaa3260193283aa494d3e745ad83655d3c9aa` | Always widescreen **1360x768** (`tennis::initializeSystem` writes the mode to `0x088bbe68`/`0x088bbe6c`). **The port is built against this one.** |
+| `vt3_Lindbergh_FULLHD` / `vt3_Lindbergh` | `556729756c9160c4a5b1c6ed0c2674d7363a936b4ca91f5e2661494a55eb66a2` | Like `vt3_Lindbergh_HD`, at **1920x1080**. |
 
 > **Note:** the port is built from `vt3_Lindbergh_HD` (the 1360x768 widescreen executable). The code layout of the executables is identical, so every address in this guide holds for each. The security dongle is not touched by this project.
 
