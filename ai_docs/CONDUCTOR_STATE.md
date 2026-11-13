@@ -394,3 +394,78 @@ turning the head, frame rate at 72/90/120 Hz, the new stands and sky.
   ignored for VT3. Test's "crash" = the game's main returning 9 (parked).
 - Headset NOT installed: worn and playing VT3 at ~10:10 (HEADSET_MOUNTED,
   app running). APKs ready: /tmp/vt3q/V3/.
+
+## 2026-11-13 midday (conductor checkpoint, near the usage limit)
+**Pushed (owner's word, after his worn check):** lindberghrecomp fork
+`vt3-quest` 6a95ff5; virtuatennis3-vr `main` b3dd3e2 (includes a merge of the
+owner's README edit made on GitHub: "keep it to yourself" sentence dropped);
+lindbergh-recomp-ports fork `vt3-quest` b1e3b3a.
+
+**Committed locally, NOT pushed, NOT installed** (headset was being worn):
+- Start-up screen V3 (owner's layout: TOP SPIN / LOB / SLICE in the middle,
+  orange superscript VR tag at the logo's top right, no grey sub-lines; sticks
+  read "MOVE · START"): virtuatennis3-vr c33933f, old tree f8e1d26.
+  **Owner still to choose** "MOVE · START" (committed) or just "MOVE"
+  (`quest/tools/vt3_splash.py --labels literal`). Pictures: `$VT3_PICS/vt3-splash/V3_*`.
+- No Arcade Test / Service rows or keys for VT3 (profile `no_test_buttons`;
+  Test made the game exit, `main returned 9` - parked): runtime bd68848,
+  virtuatennis3-vr cf2d314, old tree 765c617. Test-menu settings now
+  unreachable (owner may want rows later): DIFFICULTY, MATCH COUNT, DEUCE.
+- APK with both: `/tmp/vt3q/V3/VirtuaTennis3VR_splashV3_notest.apk`.
+
+**Worker running now (agent af5cf97231f88376b) - owner's CLASSIC mode report:**
+1. HUD position: "With the screen" must not be an option in Classic (hide
+   the row where it does nothing; per game / per mode).
+2. Texture flicker in Classic, in replays and regular play (diagnose by
+   frame differencing; suspects: msaa 2 resolves around the depth-of-field
+   composite that runs in Classic, aniso 4 + LOD bias -1 shimmer, decal
+   z-fighting without the VR decal offset, pane prelude 6a95ff5).
+3. "Card reader notice" row has no effect (Save progress on keeps the readers
+   off) -> remove the row.
+4. Screen distance 2-5 m hardly changes anything -> "Screen size: Small /
+   Medium / Big" by angular size, default Medium = today's look.
+Then: install the final committed build (it will include V3 splash + no Test
+rows), env.txt 0 bytes, owner's vr.cfg byte-identical.
+
+**Owner's decisions this session (2026-11-13):**
+- VT3 defaults = his headset settings (VR first; msaa 2, aniso 4, VR shadow
+  4096, 120 Hz, ...); other games unchanged.
+- One row "Replays and reaction cams" (VR: Off / Flat screen / VR; Classic:
+  On / Off); the 3D choice is labelled "VR".
+- Players' ground shadow (per-eye mask) confirmed good worn; anti-aliasing
+  confirmed good worn. Split-screen ghost fixed (6a95ff5, not MSAA-related).
+- Spectators missing near the viewer: parked.
+- Push only on his word, after he has checked worn.
+
+**Fixed this session, owner has NOT yet confirmed worn:** game-over / attract
+screens flat in VR; continue on game over (auto coin when the continue screen
+opens; thumbstick click = Start, wait ~3 s); stray 3D replays / reaction cams
+with Flat screen (rule by camera mode); camera height re-read every point
+(back to his setting at the near end); split screen in Classic and the
+end-of-game split; start-up screen V3.
+
+**Open / owed, in rough priority:**
+- Worn hang at frame ~2328 (main thread waits on the GL worker, which spins) -
+  the only crash-class bug; not reproduced since. See HANDOFF.
+- GPU page faults (kgsl UCHE: BR_SP, ~900/s, no visible symptom): the robust
+  context test was refused (EGL_BAD_ATTRIBUTE); needs
+  EGL_EXT_create_context_robustness for GLES. Cause unknown.
+- Split frames' GPU time: 90th percentile ~8.3 ms = the 120 Hz budget;
+  unmeasured worn.
+- Save progress: works on the headset (vt3_save.bin, 2 records, loads at
+  start); owner asked how to check - offered a one-line save/load summary in
+  the log (rank, money, matches) - not built. Lose path unverified on Quest.
+- Not reached in any run: Ending / Staffroll / Tobecontinued screens flat;
+  tie-break camera height.
+- Parked: Arcade test menu; spectators near the viewer; self-shadow detail
+  (owner: only the players' ground shadow looked low-res - done); live
+  Classic / VR switch (Quest steps); in-scene scoreboards; POV camera
+  (`ai_docs/research/pov-camera.md`, waits for the owner's word); versus with
+  two Quests (`versus-two-quests.md`); audio gain into the limiter.
+- Release: GSE / HOTD EX releases embed CRI libraries (owner to decide);
+  defaults (120 Hz, msaa 2, shadow 4096) unmeasured on Quest 3S / Pro.
+
+**If cut off:** check `adb devices`, env.txt 0 bytes, which APK is installed;
+resume the Classic worker from the HANDOFF checkpoint log's top entry; do not
+push; do not pull / rebase virtuatennis3-vr without checking `git status -sb`
+(the owner edits README on GitHub).
