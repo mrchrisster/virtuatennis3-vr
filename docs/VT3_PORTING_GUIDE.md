@@ -538,6 +538,35 @@ A runtime menu (the XR overlay already draws a settings panel, `host_xr.c` `menu
 - Comfort: camera smoothing, vignette on camera cuts.
 Settings persist through `xr_settings_save` like the existing ones; switches that need a program variant (depth on/off) can rebuild at the next frame.
 
+### 8.3a Classic's picture on the headset (2026-11-13)
+
+In Classic every frame is the arcade's flat picture: the game draws into the
+multiview eye array with its own projection (`LG_STEREO_PASS`), and the host
+(`host_xr.c` frame end, `xo_draw_screen`) puts layer 0 on a quad at the
+screen's distance, sized by the flat lens (1.732 / Screen size scale).
+- **Picture size.** Until 2026-11-13 the eye array was the headset's eye
+  size (2064x2208): the 1360x768 picture stretched 1.52 x 2.88, then shrunk
+  by one bilinear tap onto ~860x500 eye pixels (Medium) - aliasing that
+  crawls with every head movement (the owner's "texture flicker"). Now
+  `stereo_eye_size` makes it the game's picture x k in Classic
+  (`stereo_classic_pic`, `LINDBERGH_CLASSIC_PIC`, default 1.5 = 2040x1152;
+  0 = eye-sized). Everything eye-scaled follows `g_ew/g_eh` (render target
+  scaling, MSAA, hold, GAME_SHOT, split-screen panes). The log says
+  `[stereo] Classic: the picture drawn 2040x1152 ...` and, once the screen
+  is drawn, `[xr] flat screen: W x H eye pixels (N deg across), the picture
+  ... - a x b texels a pixel`.
+- **Filtering.** `xo_draw_screen` averages up to 4 x 4 bilinear taps over
+  each eye pixel's footprint (`dFdx/dFdy` of the texture coordinate), one tap
+  where the picture is not shrunk; `LINDBERGH_SCREEN_FILTER=0` = one tap.
+- **Screen size** (panel row, VT3 only, `screen_size` in vr.cfg): the flat
+  lens is divided by tan(w/2)/tan(30 deg) for w = 48 / 60 / 74 degrees
+  (`xr_settings_screen_scale`, `stereo_set_screen_size`); the quad, the
+  clipping and the pointer's ray all use `g_screen_lens`, so they follow.
+  The distance (`screen`) is kept but has no row: it never changed the size.
+- Measured (Quest 3, unattended, frames 5100-7800 of `prize`): GPU 14.3-16.2
+  ms per frame eye-sized vs 8.2-9.8 ms at x1.5. Next steps (quad layer,
+  mono) in `ai_docs/research/classic-mode-simplification.md`, owner's call.
+
 ### 8.4 Order of work
 1. Fix the shadows (Section 7.4 #4).
 2. Separate projection and view from VT3's MVP; get the court drawn in stereo with depth in the existing pipeline, fixed game camera.

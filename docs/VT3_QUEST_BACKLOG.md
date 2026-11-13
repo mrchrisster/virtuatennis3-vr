@@ -110,6 +110,33 @@ and asked that all progress and research be written to the docs.
       tournament); no camera-end rule was found in it, so the empty sections
       may simply have no cards at that crowd level. Not investigated further.
 
+## Done (2026-11-13) - the owner's Classic report
+
+- [x] **Texture flicker in Classic (replays and play)** - cause: Classic's
+      picture was drawn into the eye-sized multiview array (2064x2208,
+      stretched 1.52 x 2.88) and shrunk onto the screen quad by one bilinear
+      tap, no mipmaps: 1.8 x 3.4 texels per eye pixel at Big (owner's
+      screen), ~2.4 x 4.4 at Medium - thin lines and grass sparkle as the head
+      moves. Not in the game's own frames: fixed-head consecutive game frames
+      on the Quest and macOS show ~0.02% blinking pixels in still moments.
+      Fix (runtime defb69a, step 1 of `ai_docs/research/classic-mode-simplification.md`):
+      the eye array in Classic is the game's picture x1.5 (2040x1152,
+      `LINDBERGH_CLASSIC_PIC=<k>`, 0 = old) and the screen is sampled by a
+      footprint box filter (`LINDBERGH_SCREEN_FILTER=0` = one tap). Classic
+      GPU per frame in a match 14-16 ms -> 8-10 ms (unattended, same build,
+      env A/B). It is in the shared VR path (eye buffers); the quad-layer
+      redesign (step 2) remains the full fix. **To check worn.**
+- [x] **Screen size Small / Medium / Big** in place of Screen distance
+      (2-5 m moved the screen but kept its angle) - 48 / 60 / 74 degrees
+      across, Medium = the old look; vr.cfg `screen_size`; an older file's
+      distance picks it (2 m Big, 2.5-3 m Medium, 4-5 m Small - the owner's
+      2 m reads as Big). Runtime f244bff. **To check worn.**
+- [x] **Card reader notice row removed** (it did nothing with Save progress
+      on); the notice is always off, `LINDBERGH_VT3_CARD_RW=1` for tests.
+      Runtime b407b87.
+- [x] **HUD position row only for a head-locked HUD** (not in VT3, either
+      mode). Runtime 086ff2d.
+
 ## Done (2026-11-12)
 - [x] **libCg.so no longer in the app (T19, 2026-11-12)** - it was embedded
       byte for byte (`recomp_solib_img.c`); now read from the player's

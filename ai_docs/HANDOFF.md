@@ -168,6 +168,33 @@ halves the rate). If any T-run fails, `adb install -r` a build of the
 committed submodule (or keep the `fade8ac` APK) before handing back.
 
 **Checkpoint log (build worker, newest first):**
+- **2026-11-13 ~10:10 Classic report DONE (worker after af5cf; commits local,
+  nothing pushed).** Runtime (old tree's submodule, branch vt3-quest; fetched
+  into virtuatennis3-vr's submodule, both pin defb69a): 086ff2d (af5cf: HUD
+  position row only while head-locked) -> b407b87 (no Card reader notice row;
+  af5cf's start saved in `ai_docs/wip/2026-11-13-items3-4-af5cf-uncommitted.diff`)
+  -> f244bff (Screen size Small/Medium/Big, 48/60/74 deg, vr.cfg `screen_size`,
+  VT3 only; old distance 2 m Big, 2.5-3 Medium, 4-5 Small) -> defb69a (Classic
+  flicker: picture-sized eye array `LINDBERGH_CLASSIC_PIC` default 1.5 = 2040x1152,
+  footprint box filter in `xo_draw_screen`, `LINDBERGH_SCREEN_FILTER=0`).
+  Unit tests 87 OK (2 skipped). Flicker diagnosis: macOS game frames
+  (`/tmp/vt3q/T26/mac_*`, consecutive, blink = pixels A-B-A) ~0.02-0.05% in
+  still moments - no game-side flicker; aniso / LOD bias / MSAA bisect
+  inconclusive (runs desync), nothing pointing at them. Quest, fixed head
+  (`LINDBERGH_XR_FIXED_HEAD=1`), same APK: Q1 `CLASSIC_PIC=0 SCREEN_FILTER=0`
+  still frames 0.02% (camera pan 0.2%), Q2 default still 0.02% (pan 0.05%);
+  `[xr] flat screen: 1130 x 658 eye pixels (74 deg across)` at Big - the old
+  picture was 1.83 x 3.36 texels a pixel (Medium ~2.4 x 4.4), now 1.81 x 1.75
+  with the box filter. So the worn flicker is the host's sampling (shared
+  eye-buffer path); the quad-layer redesign is the full fix, step 1 is in.
+  GPU (match, frames 5100-7800): 14.3-16.2 ms -> 8.2-9.8 ms. Q3 splitreplay on
+  the new build: split panes fine, no warnings. Headset: 3 runs (asleep 37 min,
+  no input before), vr.cfg byte-identical (owner's has `screen 2` -> Big on
+  first start, `classic.card_notice on` now ignored), env.txt 0 B, app
+  stopped. **Installed:** defb69a + V3 splash + no Test rows
+  (`/tmp/vt3q/T26/VirtuaTennis3VR_defb69a.apk`). Owner worn: flicker in play
+  and replays; Screen size (his file reads Big; Medium = old look); no Card
+  reader notice row; no HUD position row; start-up screen V3; no Test/Service rows.
 - **2026-11-13 Arcade Test / Service rows removed for VT3 COMMITTED (submodule
   bd68848 + outer games/vt3/src/host.c).** Owner: "Arcade test button crashes
   the game and arcade service button don't work". Cause (macOS round0, Test

@@ -470,3 +470,11 @@ resume the Classic worker from the HANDOFF checkpoint log's top entry; do not
 push; do not pull / rebase virtuatennis3-vr without checking `git status -sb`
 (the owner edits README on GitHub).
 - Owner chose the start-up stick label: **"MOVE · START"** (the committed V3 variant; nothing to change).
+
+## 2026-11-13 ~10:10 Classic report done (build worker)
+All four items committed locally (runtime defb69a pinned in both trees), not
+pushed; installed on the headset (with V3 splash + no Test rows), app stopped,
+vr.cfg identical, env.txt 0 B. Flicker = the host's sampling of an eye-sized,
+stretched picture (shared VR path); fix = picture-sized Classic eye array x1.5
++ box filter (research step 1); Classic GPU 14-16 -> 8-10 ms. Owner to check
+worn; details at the top of HANDOFF 3.1. Step 2 (quad layer) waits for his word.
