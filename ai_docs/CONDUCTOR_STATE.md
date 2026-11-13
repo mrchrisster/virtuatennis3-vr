@@ -356,3 +356,13 @@ turning the head, frame rate at 72/90/120 Hz, the new stands and sky.
 - Quest R1/R2 done, build 92b6f7b installed, env.txt 0, vr.cfg identical, app
   stopped. Item 7 diagnosed (MSAA-only ghost), not fixed. GPU 4.0-4.3 ms avg
   with msaa 2/aniso 4/4096 (unworn).
+
+## 2026-11-13 ~05:25 (build/headset worker: item 7 split ghost with AA)
+- Mechanism found (draw log with scissor): the right pane's colour clear is
+  dropped by the flat-frame rule, so its ground-shadow mask copy reads the
+  right half as restored after earlier resolves (undefined with implicit-
+  resolve MSAA; one bin came back with the left pane squeezed in).
+- Fix built (stereo.c pane_clear_rest: AA on, clear colour outside the panes
+  already drawn; LINDBERGH_PANE_CLEAR=0 off; msaa 0 unchanged) + texture
+  filtering log rate-limited. Unverified on the headset: safety diff in
+  ai_docs/wip/item7-split-msaa-pane-clear-lindberghrecomp.diff. Headset run next.
