@@ -168,6 +168,16 @@ halves the rate). If any T-run fails, `adb install -r` a build of the
 committed submodule (or keep the `fade8ac` APK) before handing back.
 
 **Checkpoint log (build worker, newest first):**
+- **2026-11-13 item 6 (defaults) COMMITTED, macOS unit tests green.** Submodule
+  13f9291: `LG_XR_SETTINGS_DEFAULT` msaa 2, aniso 4, imm_shadow 4096
+  (`xr_settings.h`); `xw_restore_defaults` also resets aniso (row on both
+  Advanced pages); msaa (main page) untouched by Restore. Desktop: msaa
+  env-only as before, aniso 4 / Immersive shadow 4096 by default. Tests
+  test_world_mode / test_xr_settings / test_xr_world_panel / test_xr_panel:
+  34 OK. GPU headroom: no earlier headset `[gputime]` with msaa 2 + aniso 4 +
+  4096 exists (T17's aa4 run was never made) - owner's worn judgement only
+  until the combined run of this session measures it. Quest run owed
+  (combined with items 1-5/7).
 - **2026-11-12 T19 COMMITTED (submodule 1addfc1 + outer) - libCg.so is no
   longer in the app; macOS-verified, Quest smoke run OWED.** Sizes: mac
   `build-mac/vt3` 70,181,888 -> 68,052,576 B; APK libmain.so 74,052,080 ->
