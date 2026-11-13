@@ -118,8 +118,7 @@ SHA-256. This project does not emulate or answer the cabinet's security
 dongle, so an executable that requires the dongle check to pass will stop at
 start-up with "Game Program Not Found".
 
-Start *Virtua Tennis 3 VR* from Unknown Sources. The APK holds code
-translated from your copy of the game: keep it to yourself.
+Start *Virtua Tennis 3 VR* from Unknown Sources.
 
 ### Troubleshooting
 
