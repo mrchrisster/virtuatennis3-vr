@@ -3,6 +3,10 @@
 **Stand courtside in a full 3D stadium: Virtua Tennis 3 rebuilt as a
 standalone VR game for Meta Quest, from your own copy of the arcade game.**
 
+[![Virtua Tennis 3 VR Trailer](https://img.youtube.com/vi/HLOx7s2JFiw/maxresdefault.jpg)](https://youtu.be/HLOx7s2JFiw "Watch Virtua Tennis 3 VR Trailer on YouTube")
+
+**[▶ Watch the Virtua Tennis 3 VR Trailer on YouTube](https://youtu.be/HLOx7s2JFiw)** — *Classic 2D & 3D VR captured on Meta Quest 3.*
+
 This repository has the VR runtime, the build scripts and the Quest app for a
 port of Sega's arcade *Virtua Tennis 3* (Lindbergh, 2006) to Meta Quest 3 / 3S /
 Pro, plus a macOS build for testing. The game's x86 code is statically
