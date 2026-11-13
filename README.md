@@ -69,26 +69,88 @@ Both modes:
 
 ## Build for Meta Quest
 
-You need macOS with Homebrew's
-`cmake ninja sdl2`, Python 3.10+, the Android SDK with NDK 27 or 28, a JDK
-17+ (21 recommended), `adb`, and your copy of the game: the `disk0` folder,
-which holds `vt3_Lindbergh/`, `shader/` and `lib/`. All of it is needed,
-including `lib/libCg.so`: its code is recompiled like the game's, and its
-bytes are read from your file (size and SHA-256 checked) when the game starts.
-
-The port is built and tested against the `vt3_Lindbergh_HD` executable (the
-1360x768 one; the build checks its SHA-256). This project does not emulate or
-answer the cabinet's security dongle, so an executable that requires the
-dongle check to pass will stop at start-up with "Game Program Not Found".
+There is no download of the app: it holds code translated from the game, so
+everyone builds their own from their own copy. One command does it:
 
 ```sh
 git clone --recursive https://github.com/mrchrisster/virtuatennis3-vr.git
 cd virtuatennis3-vr
+scripts/build-quest-from-my-copy.sh /path/to/disk0            # -> quest/VirtuaTennis3VR.apk
+scripts/build-quest-from-my-copy.sh --install /path/to/disk0  # ...and onto the headset
+```
+
+`disk0` is your game folder, the one that holds `vt3_Lindbergh/`, `shader/`
+and `lib/`. The script:
+
+1. checks what it needs and says how to get what is missing (it does not
+   install anything on your Mac itself): macOS with the Xcode command line
+   tools, Homebrew's `cmake ninja`, Python 3.10+, a JDK 17+ (21
+   recommended: `brew install openjdk@21`), the Android SDK with NDK 27 or 28
+   (Android Studio's SDK Manager), and `adb` for `--install`
+   (`brew install --cask android-platform-tools`);
+2. checks your game folder: the files the port needs, and the fingerprints of
+   `vt3_Lindbergh/vt3_Lindbergh_HD` and `lib/libCg.so` (see below);
+3. downloads and builds the Quest libraries (SDL2, gl4es with
+   `quest/gl4es.patch`, OpenAL Soft, the OpenXR loader) into `../deps`, next
+   to this folder;
+4. recompiles your copy of the game to C (into `games/vt3/generated`,
+   git-ignored; several minutes the first time);
+5. builds `quest/VirtuaTennis3VR.apk` (no game files in it);
+6. with `--install` (headset in developer mode, on USB): shows what it will
+   write and asks, then installs the APK and copies the game files the app
+   reads to `/sdcard/VirtuaTennis3/` on the headset (only files that are
+   newer than the headset's; its settings and saves are left alone).
+
+Run it again after an update or a failure: finished steps are skipped. Each
+step's output is in `build-quest/logs/`; `--check` only checks, `--help`
+lists the options. The first build takes about 7-15 minutes (7 on an M-series
+Mac), most of it the recompile; a rerun with nothing changed, seconds.
+
+All of the game folder is needed, including `lib/libCg.so`: its code is
+recompiled like the game's, and its bytes are read from your file (size and
+SHA-256 checked) when the game starts. The port is built and tested against
+the `vt3_Lindbergh_HD` executable (the 1360x768 one); the script checks its
+SHA-256. This project does not emulate or answer the cabinet's security
+dongle, so an executable that requires the dongle check to pass will stop at
+start-up with "Game Program Not Found".
+
+Start *Virtua Tennis 3 VR* from Unknown Sources. The APK holds code
+translated from your copy of the game: keep it to yourself.
+
+### Troubleshooting
+
+- **"lib/libCg.so is missing" / "not the one the port is built against"**
+  (from the script, or the app's message on the headset): the whole game
+  folder is needed, `lib/` included, and on the headset at
+  `/sdcard/VirtuaTennis3/lib/libCg.so`. The app needs the same file the build
+  checked (2,170,374 bytes).
+- **"vt3_Lindbergh_HD has a different SHA-256"**: the port is built against
+  `vt3_Lindbergh_HD` with SHA-256 `4bc1ff17...d3c9aa`; other versions of the
+  executable are not supported.
+- **"Android NDK 27 or 28"**: install one with Android Studio's SDK Manager
+  (SDK Tools > NDK (Side by side), e.g. 28.2.13676358), or point
+  `ANDROID_NDK` at one. Other NDK versions are untested.
+- **"... does not match quest/gl4es.patch"**: the patch changed since
+  `../deps/gl4es` was built; delete `../deps/gl4es` and `../deps/gl4es-android`
+  and run the script again.
+- **The headset shows "Finding position in room", a Guardian prompt, or
+  stays dark**: the app waits for the headset's tracking. Turn on the light
+  (tracking needs a lit room) and confirm the boundary prompt in the headset.
+- **The first start is slow** (around 35 s, a start-up screen with a progress
+  line): the game reads its files. Later starts are quicker.
+- **Nothing happens after `--install`**: put the headset on and accept
+  "Allow USB debugging"; the script says when adb sees no headset or one that
+  has not allowed this computer.
+
+<details>
+<summary>Building by hand (what the script runs)</summary>
+
+```sh
 export ANDROID_NDK=$HOME/Library/Android/sdk/ndk/<version>
 
 # 1. recompile your copy of the game to C (into games/vt3/generated,
-#    git-ignored); this also builds the macOS test binary
-./scripts/build-macos.sh vt3 /path/to/disk0
+#    git-ignored); without --lift-only this also builds the macOS test binary
+./scripts/build-macos.sh --lift-only vt3 /path/to/disk0
 
 # 2. the Quest dependencies (SDL2, gl4es + quest/gl4es.patch, OpenAL Soft,
 #    the OpenXR loader), built into ../deps
@@ -110,20 +172,40 @@ quest/build.sh vt3
 quest/install.sh vt3 /path/to/disk0
 ```
 
-Start *Virtua Tennis 3 VR* from Unknown Sources. The APK holds code
-translated from your copy of the game: keep it to yourself.
+`quest/install.sh` copies the game folders as they are, including any
+`vr.cfg` / `lindbergh.ini` a macOS run left in them; the script copies
+without those.
+
+</details>
 
 ## Build and run on macOS
 
 ```sh
-./scripts/build-macos.sh vt3 /path/to/disk0
+scripts/build-quest-from-my-copy.sh --mac /path/to/disk0   # or: ./scripts/build-macos.sh vt3 /path/to/disk0
 ./scripts/run-macos.sh vt3 /path/to/disk0
 ```
+
+This needs Homebrew's `cmake ninja sdl2` and Python 3.10+ (no Android tools).
 
 Keyboard: arrows move, Z = top spin, X = slice, Z + X = lob, 5 = coin,
 1 = start, M = sound (it starts muted), Esc = quit. `LINDBERGH_VT3_IMMERSIVE=1`
 shows the VR mode in a flat window. `scripts/vt3-repro.sh` runs scripted test
 scenes; `LINDBERGH_HEADLESS=1` keeps the window off screen.
+
+## Tests
+
+No game needed:
+
+```sh
+python3 -m venv .venv && .venv/bin/pip install -r requirements-dev.txt
+.venv/bin/python lindberghrecomp/tools/recomp/test_driver.py
+(cd lindberghrecomp && ../.venv/bin/python -m unittest discover -s tests -p 'test_*.py')
+```
+
+The XR actions test needs `openxr/openxr.h` (from `../deps` after
+`quest/deps.sh`, or `LINDBERGH_TEST_OPENXR_HEADERS=<dir>`) and is skipped
+without it. CI (`.github/workflows/ci.yml`) runs these and the runtime's
+self-check.
 
 ## Settings
 

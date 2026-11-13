@@ -368,9 +368,10 @@ cat <<EOF
            and saves there are not touched
 EOF
 if [ "$YES" = 0 ]; then
-    [ -r /dev/tty ] || die "no terminal to ask on: run with --yes to install without asking"
+    { exec 3< /dev/tty; } 2>/dev/null || die "no terminal to ask on: run with --yes to install without asking"
     printf '\n    Go ahead? [y/N] '
-    read -r answer < /dev/tty || answer=
+    read -r answer <&3 || answer=
+    exec 3<&-
     case "$answer" in y|Y|yes|YES) ;; *) say "nothing written to the headset"; exit 0 ;; esac
 fi
 run adb-install "$ADB" install -r "$APKF"
