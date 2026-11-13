@@ -187,7 +187,7 @@ committed submodule (or keep the `fade8ac` APK) before handing back.
     the picture shown must come from elsewhere (front buffer / a later blit /
     the copy being depth); under gl4es multiview only the dropped clear keeps a
     picture in the eyes. Not solved; the old path stays.
-  - **Mitigation tried (QD):** Classic picture x2 (2720x1152... 2720x1536) + MSAA 4x:
+  - **Mitigation tried (QD):** Classic picture x2 (2720x1536) + MSAA 4x:
     blinking pixels per changed pixel 0.026 vs 0.025 at x1.5 / 2x (both measured at
     680x384 over frames 2500-2553) - no gain; the frame rate fell to 39-46 fps
     (late frames, GPU timer readings garbage at 4x). Rejected; not a default.
