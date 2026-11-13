@@ -168,6 +168,38 @@ halves the rate). If any T-run fails, `adb install -r` a build of the
 committed submodule (or keep the `fade8ac` APK) before handing back.
 
 **Checkpoint log (build worker, newest first):**
+- **2026-11-13 ~11:45 Classic flicker round 2 (owner: defb69a still flickers worn) -
+  NOT fixed; findings; nothing new committed in the runtime.** Heat maps of A-B-A
+  pixels (changed and back next frame) in `~/Desktop/Claude/vt3-bugs/classic_flicker_heatmap_*.png`
+  (+ `.npy` counts):
+  - macOS (desktop GL, no gl4es), 120 consecutive frames, still camera
+    (`/tmp/vt3q/T27/mac_play`): 0.040% of pixels per frame, top band 0.06
+    blinks/px/100 frames, nothing persistent - only the moving players.
+    `LINDBERGH_GL_THREAD=1` on macOS: the same (0.037%) - not the GL worker.
+  - Quest, full-size consecutive shots, fixed head, slow camera pan before the
+    split (`/tmp/vt3q/T27/QA_old`, frames 2500-2553, ~8% of pixels change a frame):
+    0.33% per frame; hot spots on the side boards (Bridgestone, right), the left
+    stand's wall edges, the crowd top right, grass specks. Hot pixels alternate
+    frame by frame between two values (e.g. 33/71/33/74) = thin bright features
+    crossing pixel centres during the pan: aliasing in the game's own picture.
+  - Code finding: in Classic every frame is flat, so the VR rules in stereo.c
+    "a screen copy drawn back is left out" and "the colour clear before it is
+    dropped" (added in 7675d88 for flat menus) also remove Classic's
+    full-screen depth-of-field / glare composite. The arcade softens the far
+    crowd / boards through that composite; the Quest shows them raw, which
+    fits the aliasing above. Tried keeping both in Classic
+    (`classic_composite()`, LINDBERGH_CLASSIC_COMPOSITE; diff in
+    `ai_docs/wip/2026-11-13-classic-composite-uncommitted.diff`): on the Quest
+    (`/tmp/vt3q/T27/QB_new`) every game frame was BLACK (mean 0.2-0.5) - the
+    composite under gl4es multiview samples an empty copy / target. Reverted;
+    the headset is back on the defb69a APK. Headset: 2 runs (asleep 7 min after
+    the owner's session), vr.cfg restored byte-identical (a run had rewritten
+    `stats on` -> `off`), env.txt 0 B, app stopped.
+  - Next (needs runs): find why the composite comes out black under multiview
+    (`LINDBERGH_COPY_LOG=1`, `LINDBERGH_VT3_CUTLOG=1` on a few frames: which
+    texture the composite reads, and whether copy_from_eyes / gl4es copy-back
+    fills it in flat frames), then keep the composite in Classic. Not yet
+    bisected on the headset: MSAA / ANISO / LOD_BIAS (no runs left).
 - **2026-11-13 ~10:10 Classic report DONE (worker after af5cf; commits local,
   nothing pushed).** Runtime (old tree's submodule, branch vt3-quest; fetched
   into virtuatennis3-vr's submodule, both pin defb69a): 086ff2d (af5cf: HUD

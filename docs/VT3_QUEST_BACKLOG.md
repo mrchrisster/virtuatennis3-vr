@@ -19,6 +19,12 @@ fix works live in `VT3_PORTING_GUIDE.md` section 8.
 ## To do
 
 ### Bugs
+- [ ] **Classic texture flicker remains (owner, 2026-11-13, defb69a worn)**:
+      aliasing in the game's own picture during camera moves (side boards,
+      stand edges, far crowd). Classic on the Quest leaves out the game's
+      depth-of-field / glare composite (a VR rule that also catches Classic's
+      flat frames); keeping it gave black frames under multiview - to fix
+      next (HANDOFF 3.1, 2026-11-13 ~11:45).
 - [ ] **T14: a short glitch at the start of every point (VR)** (owner,
       2026-11-12, build 9dd8505). Cause (macOS camera log): at each point's
       start the game puts its court camera ~10 m nearer and 3 m lower, then
@@ -125,7 +131,8 @@ and asked that all progress and research be written to the docs.
       footprint box filter (`LINDBERGH_SCREEN_FILTER=0` = one tap). Classic
       GPU per frame in a match 14-16 ms -> 8-10 ms (unattended, same build,
       env A/B). It is in the shared VR path (eye buffers); the quad-layer
-      redesign (step 2) remains the full fix. **To check worn.**
+      redesign (step 2) remains the full fix. **Owner, worn: still
+      flickers** - see the open item below.
 - [x] **Screen size Small / Medium / Big** in place of Screen distance
       (2-5 m moved the screen but kept its angle) - 48 / 60 / 74 degrees
       across, Medium = the old look; vr.cfg `screen_size`; an older file's

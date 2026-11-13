@@ -1,0 +1,54 @@
+diff --git a/src/runtime/stereo.c b/src/runtime/stereo.c
+index c8ca1fa..0a148e2 100644
+--- a/src/runtime/stereo.c
++++ b/src/runtime/stereo.c
+@@ -1928,6 +1928,31 @@ static void side_pass(int on)
+ static unsigned g_pane_frame = ~0u;
+ static int      g_pane[4];              /* this frame's panes so far, one box: x0, y0, x1, y1 (game pixels) */
+ static int      g_pane_side;            /* inside a pane's prelude (a side pass) */
++/* Virtua Tennis 3 in Classic: the game's screen copies composited back and
++ * the colour clear before them kept, as on the cabinet (2026-11-13). Both
++ * rules below (a copy drawn back left out, the clear before it dropped) are
++ * for the world in VR, where a copy of one eye drawn over both would flatten
++ * it; they also caught Classic's frames once every Classic frame became flat
++ * (7675d88 flat menus, later every frame), so Classic lost its depth-of-field
++ * and glare composite: the far crowd, the far wall's top edge and other fine
++ * detail at the top of the picture were shown unblurred, aliased, and
++ * sparkled from frame to frame (the owner's "texture flicker"; A-B-A heat
++ * maps in ai_docs). In Classic both layers carry the same flat picture, so
++ * the arcade's own sequence is right. Split screen needs no pane prelude
++ * then (its colour clear is the game's own). LINDBERGH_CLASSIC_COMPOSITE=0:
++ * left out as before. */
++static int classic_composite(void)
++{
++    static int on = -1;
++    if (on < 0) {
++        const char *v = getenv("LINDBERGH_CLASSIC_COMPOSITE"), *fa = getenv("LINDBERGH_FLAT_ALL");
++        on = v && *v ? *v != '0' : 1;
++        if (!world_mode_capable() || world_mode_immersive() || (fa && *fa == '0')) on = 0;
++        fprintf(stderr, "[stereo] Classic: the game's screen copies composited back (depth of field, glare): %s\n",
++                on ? "yes" : "no (LINDBERGH_CLASSIC_COMPOSITE=0 or not Classic)");
++    }
++    return on && g_flat;
++}
+ static int pane_prelude_on(void)
+ {
+     static int on = -1;
+@@ -2292,7 +2317,7 @@ static int transform_call(CPU *c, HleId id, const char *n)
+      * effect) would flatten it to one eye's picture: left out. Over no world
+      * it is the whole picture - a transition, last frame's view swept away -
+      * and leaving it out left the eyes black: it goes over the whole view. */
+-    if (g_on && g_mv && !g_side && (is_draw(k) || k == K_BEGIN) && g_tex2d_on && g_nscreen_copy && screen_copy(g_tex2d_bound) && (g_scene_draws || (g_flat && g_eye_draws))) {
++    if (g_on && g_mv && !g_side && (is_draw(k) || k == K_BEGIN) && g_tex2d_on && g_nscreen_copy && screen_copy(g_tex2d_bound) && (g_scene_draws || (g_flat && g_eye_draws)) && !classic_composite()) {
+         if (k == K_BEGIN) g_skip_begin = 1;
+         return 1;
+     }
+@@ -2330,7 +2355,7 @@ static int transform_call(CPU *c, HleId id, const char *n)
+          * black - it goes. */
+         if (g_pane_side && (mask & GL_DEPTH_BUFFER_BIT) && !(mask & GL_COLOR_BUFFER_BIT)) pane_prelude_end();   /* the pane itself: the eyes */
+         if (g_on && g_mv && !g_side && g_game_fb == 0 && mask == GL_DEPTH_BUFFER_BIT) pane_note();
+-        if (g_on && g_mv && !g_side && g_game_fb == 0 && (mask & GL_COLOR_BUFFER_BIT) &&
++        if (g_on && g_mv && !g_side && g_game_fb == 0 && (mask & GL_COLOR_BUFFER_BIT) && !classic_composite() &&
+             ((g_scene_draws && g_eyes_copied_frame == g_frame) || (g_flat && g_eye_draws))) {
+             if (pane_prelude_begin()) return 0;     /* the clear as the game made it, into the side target */
+             mask &= ~(GLbitfield)GL_COLOR_BUFFER_BIT;
