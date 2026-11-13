@@ -139,8 +139,9 @@ Start *Virtua Tennis 3 VR* from Unknown Sources.
 - **The headset shows "Finding position in room", a Guardian prompt, or
   stays dark**: the app waits for the headset's tracking. Turn on the light
   (tracking needs a lit room) and confirm the boundary prompt in the headset.
-- **The first start is slow** (around 35 s, a start-up screen with a progress
-  line): the game reads its files. Later starts are quicker.
+- **The first start is slow** (around 35 s, a start-up screen with the
+  controls and a progress line; "MOVE · START" means the stick moves and its
+  click is Start): the game reads its files. Later starts are quicker.
 - **Nothing happens after `--install`**: put the headset on and accept
   "Allow USB debugging"; the script says when adb sees no headset or one that
   has not allowed this computer.

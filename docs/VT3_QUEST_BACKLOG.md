@@ -134,6 +134,15 @@ and asked that all progress and research be written to the docs.
 - [x] **Camera height stayed High back at the near end** (2026-11-13, owner's
       item 4): the end is re-read every point (guide 8). macOS-verified over
       three far/near cycles; Quest run owed; tie-breaks not run.
+- [x] **Start-up screen V3** (2026-11-13, owner: "top spin text can also be in
+      the middle ... VR should be at the top right of the logo and should be
+      orange ... get rid of the grey text sub descriptions"): TOP SPIN / LOB /
+      SLICE one legend in the middle with level leaders to both hands; the VR
+      tag orange (the logo's swoosh orange, 240/90/16, navy letters), superscript
+      at the logo's top right (fallback title too); no sub-lines - the sticks
+      read "MOVE · START" (keeps click = Start visible; `--labels literal` =
+      just MOVE, the owner may pick it), SETTINGS on the left menu button.
+      Pictures `$VT3_PICS/vt3-splash/V3_*`. Quest APK built; owner to judge worn.
 - [x] **Start-up screen typography** (2026-11-13, owner: "skip the note between
       the controllers ... still looks clunky. make VR appear smaller"): one
       open-licence face (Inter, OFL, `quest/tools/fonts/`), a small lime "VR"

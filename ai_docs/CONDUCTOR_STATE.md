@@ -378,3 +378,12 @@ turning the head, frame rate at 72/90/120 Hz, the new stands and sky.
   split window 5.4 ms avg (90% 8.3, worst 9.8), rally 4.0 ms (unworn).
   Texture filtering log rate-limited. env.txt 0, vr.cfg identical, app stopped.
 - Not checked: Classic worn (same flat code path), end-of-game split.
+
+## 2026-11-13 ~10:15 (build worker: start-up screen V3)
+- Owner's three changes done in quest/tools/vt3_splash.py, splash_art.c
+  regenerated (outer only; runtime unchanged): TOP SPIN / LOB / SLICE in the
+  middle, orange superscript VR tag (240, 90, 16) at the logo's top right,
+  grey sub-lines gone; sticks read "MOVE · START" (recommended, committed);
+  literal "MOVE" variant rendered for the owner to choose (`--labels literal`).
+- Renders: $VT3_PICS/vt3-splash/V3_*. macOS build + unit tests OK, Quest APK
+  built. Next: install + launch check, then the arcade test/service rows item.

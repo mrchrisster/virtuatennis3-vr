@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""vt3_splash.py <out.c> [preview.png] [--tag solid|outline]: draws the Quest
+"""vt3_splash.py <out.c> [preview.png] [--labels start|literal]: draws the Quest
 start-up screen for Virtua Tennis 3 (VR edition) and writes it as a deflated
 RGBA image in C for host_xr.c's splash (splash_art.c).
 
@@ -16,20 +16,25 @@ one family for everything; no system font (2026-11-13: the DIN / Avenir
 Next Apple fonts of the first version could not be released).
 
 Design (owner, 2026-11-12 / -13): minimal and spacious; the logo with a small
-"VR" tag after it (the tag's height about half the logo's lettering, its
-foot on the lettering's baseline - not competing with the logo); a left and
-a right controller drawn as thin lines (our own simplified drawings) with
-callouts to the controls (xr_controls.c lever_buttons: either hand alike -
-trigger top spin, A / X slice, B / Y lob, thumbstick move and click = Start;
-the left controller's menu button opens the settings); the labels on a grid
-(two columns, the action in caps over the control's name, leaders of one
-weight with their horizontal ends aligned); no note between the
-controllers; at the bottom the word LOADING tied to a thin line that fills
-with the loading time, a small tennis ball riding on its end.
+orange "VR" tag at its top right (superscript: the tag's top on the logo's
+top - the top of the "3" - just right of the logo's drawn right edge; the
+orange is the logo's own swoosh orange, sampled ~(240, 90, 16), navy
+letters); a left and a right controller drawn as thin lines (our own
+simplified drawings) with callouts to the controls (xr_controls.c
+lever_buttons: either hand alike - trigger top spin, A / X slice, B / Y lob,
+thumbstick move and click = Start; the left controller's menu button opens
+the settings). Both hands' shots are one legend in the middle between the
+controllers - TOP SPIN / LOB / SLICE, top to bottom, a level leader to each
+hand's trigger / button; outside only MOVE (both sticks) and SETTINGS (the
+left menu button). One line per label, no grey sub-lines (owner, 2026-11-13);
+--labels start (committed) labels the sticks "MOVE \u00b7 START" so the stick
+click = Start stays on screen, --labels literal just "MOVE". At the bottom
+the word LOADING tied to a thin line that fills with the loading time, a
+small tennis ball riding on its end.
 Size scale (px on the 1536 x 864 panel, 1.8 m wide at 2 m - ~32 px per
-degree): tag 58 high (cap 30), action labels 26 (caps, +8 % tracking),
-control names 20, LOADING 15 (caps, +30 % tracking). Margins >= 96 px at the
-sides, the bar 55 px above the bottom edge.
+degree): tag 46 high (cap 24), action labels 26 (caps, +8 % tracking),
+LOADING 15 (caps, +30 % tracking). Margins >= 96 px at the sides, the bar
+55 px above the bottom edge.
 
 The image is an atlas, top to bottom:
   the panel, PANEL_W x PANEL_H
@@ -39,14 +44,15 @@ Needs Pillow."""
 import os, sys, zlib, math
 from PIL import Image, ImageDraw, ImageFont, ImageFilter, ImageChops
 
-TAG = 'solid'                   # committed: solid (lime tag, navy letters); 'outline' = lime outline and letters
+LABELS = 'start'                # committed: the sticks read "MOVE \u00b7 START"; 'literal' = just "MOVE"
 args = []
 it = iter(sys.argv[1:])
 for a in it:
-    if a == '--tag':
-        TAG = next(it)
+    if a == '--labels':
+        LABELS = next(it)
     else:
         args.append(a)
+assert LABELS in ('start', 'literal'), LABELS
 
 PANEL_W, PANEL_H = 1536, 864
 CELL_W, CELL_H = 64, 96
@@ -60,10 +66,8 @@ def inter(size, weight, slant=0):
     return f
 
 ACT_F = inter(26, 700)          # TOP SPIN
-NAME_F = inter(20, 420)         # Trigger
 LOAD_F = inter(15, 600)         # LOADING
 BTN_F = inter(15, 650)          # the A / B / X / Y on the drawings
-TAG_F = inter(41, 800)          # VR (cap height ~30)
 
 # the game's own colours (its title screen: navy, chrome white, ball lime)
 BG0, BG1 = (12, 26, 62), (3, 7, 20)
@@ -73,6 +77,7 @@ LINE = (150, 168, 200)
 DIM = (104, 120, 152)
 FAINT = (40, 56, 96)
 NAVY = (8, 18, 46)
+ORANGE = (240, 90, 16)          # the logo's swoosh orange (sampled ~(240, 84-96, 16)): the VR tag
 
 img = Image.new('RGBA', (W, H), (0, 0, 0, 0))
 panel = Image.new('RGBA', (PANEL_W, PANEL_H), BG1 + (255,))
@@ -96,27 +101,22 @@ def tracked(dr, x, y, text, f, fill, track=0.0, align='l', anchor='s'):
 
 
 # ---------------------------------------------------------------- the VR tag, the fallback title
-def vr_tag(style):
-    """a small tag: rounded rectangle, "VR" in Inter ExtraBold, optically centred; cropped tight
-    (its bottom edge is what sits on the logo's baseline)"""
+TAG_H = 46
+def vr_tag():
+    """a small tag: orange rounded rectangle, "VR" in navy Inter ExtraBold, optically centred; cropped
+    tight (its top edge is what lines up with the logo's top)"""
     SS = 4
-    f = inter(41 * SS, 800)
+    f = inter(33 * SS, 800)
     tw = tracked_width('VR', f, 0.04)
     cap = f.getbbox('V', anchor='ls')
     caph = -cap[1]
-    h = 58 * SS
-    padx = 20 * SS
+    h = TAG_H * SS
+    padx = 15 * SS
     w = int(tw + 2 * padx)
     t = Image.new('RGBA', (w, h), (0, 0, 0, 0))
     td = ImageDraw.Draw(t)
-    r = 10 * SS
-    if style == 'outline':
-        td.rounded_rectangle([SS, SS, w - 1 - SS, h - 1 - SS], radius=r, outline=LIME + (255,), width=3 * SS)
-        col = LIME
-    else:
-        td.rounded_rectangle([0, 0, w - 1, h - 1], radius=r, fill=LIME + (255,))
-        col = NAVY
-    tracked(td, padx, (h + caph) / 2, 'VR', f, col + (255,), 0.04)
+    td.rounded_rectangle([0, 0, w - 1, h - 1], radius=8 * SS, fill=ORANGE + (255,))
+    tracked(td, padx, (h + caph) / 2, 'VR', f, NAVY + (255,), 0.04)
     return t.resize((w // SS, h // SS), Image.LANCZOS)
 
 def title_text():
@@ -131,7 +131,8 @@ def title_text():
     out.alpha_composite(sh, (0, 3))
     body = Image.new('RGBA', (w, h), WHITE + (255,)); body.putalpha(m)
     out.alpha_composite(body)
-    return out.crop(out.getbbox())
+    bb = out.getbbox()
+    return out.crop(bb), m.getbbox()[1] - bb[1]        # the picture, its lettering's top in it
 
 
 # ---------------------------------------------------------------- a controller, thin lines (our own drawing)
@@ -159,7 +160,7 @@ def controller(cx, cy, s, left):
     for (x, y), n in ((lo, names[0]), (up, names[1])):
         d.ellipse([x - br, y - br, x + br, y + br], outline=LIME + (255,), width=lw)
         d.text((x, y + 1), n, font=BTN_F, fill=WHITE + (255,), anchor='mm')
-    marks = {'trigger': P(0, -116), 'stick': P(sx, sy), 'lower': lo, 'upper': up, 'r_btn': br, 'r_stick': 30 * s}
+    marks = {'trigger': P(0, -121), 'stick': P(sx, sy), 'lower': lo, 'upper': up, 'r_btn': br, 'r_stick': 30 * s}
     if left:
         mx, my = P(-6, 26)
         mr = 10 * s
@@ -174,30 +175,17 @@ def controller(cx, cy, s, left):
 
 
 LEADER_W = 2
-def callout(pt, r, knee_x, label_x, ty, act, name, side):
-    """a leader from the control (r: its radius) to the knee on the label's row, then level to the
-    label; the action in lime caps on the row's line, the control's name under it.
-    side -1: label left of label_x (right-aligned), +1: right"""
-    x, y = pt
-    dx, dy = knee_x - x, ty - y
-    n = math.hypot(dx, dy) or 1
-    end = label_x - 14 * side
-    d.line([(x + dx / n * (r + 5), y + dy / n * (r + 5)), (knee_x, ty), (end, ty)], fill=DIM + (255,), width=LEADER_W, joint='curve')
-    d.ellipse([end - 3, ty - 3, end + 3, ty + 3], fill=LIME + (255,))
-    al = 'r' if side < 0 else 'l'
-    tracked(d, label_x, ty + 9, act, ACT_F, LIME + (255,), 0.08, al)       # caps: baseline 9 under the line -> centred on it
-    tracked(d, label_x, ty + 34, name, NAME_F, LINE + (255,), 0.0, al)
 
 
 # ---------------------------------------------------------------- parts: VR tag, fallback title, ball
-vr = vr_tag(TAG)
+vr = vr_tag()
 VR_W, VR_H = vr.size
-t1 = title_text()
-TITLE_GAP = 22
-TITLE_W, TITLE_H = t1.size[0] + TITLE_GAP + VR_W, max(t1.size[1], VR_H)
+t1, t1_top = title_text()
+TITLE_GAP = 14
+TITLE_W, TITLE_H = t1.size[0] + TITLE_GAP + VR_W, t1.size[1]
 title = Image.new('RGBA', (TITLE_W, TITLE_H), (0, 0, 0, 0))
-title.alpha_composite(t1, (0, TITLE_H - t1.size[1]))
-title.alpha_composite(vr, (t1.size[0] + TITLE_GAP, TITLE_H - VR_H - 6))     # the tag's foot on the title's baseline
+title.alpha_composite(t1, (0, 0))
+title.alpha_composite(vr, (t1.size[0] + TITLE_GAP, t1_top))     # superscript: the tag's top on the lettering's top
 
 BALL, SS = 30, 8
 bimg = Image.new('RGBA', (BALL * SS, BALL * SS), (0, 0, 0, 0))
@@ -213,49 +201,54 @@ bimg = bimg.rotate(-25, resample=Image.BICUBIC).resize((BALL, BALL), Image.LANCZ
 
 
 # ---------------------------------------------------------------- the layout (centre stage)
-# Both hands play alike, and the shot buttons face each other: LOB and SLICE
-# are one legend between the controllers (a leader to each hand's button; the
-# letters are on the drawings), the outer controls are labelled outside - one
-# row per control, on the control's own height, so every leader is level.
+# Both hands play alike and their shot controls face each other: TOP SPIN, LOB
+# and SLICE are one legend in the middle between the controllers, top to
+# bottom in the order of the controls (trigger, upper button, lower button),
+# each with a level leader to either hand (the button letters are on the
+# drawings); outside only what is not shared - MOVE on both sticks, SETTINGS
+# on the left menu button - one row per control, on its own height.
 def radius(marks, key):
-    return {'trigger': 34 * .9, 'stick': marks['r_stick'], 'lower': marks['r_btn'], 'upper': marks['r_btn'], 'menu': 10 * .9}[key]   # trigger: the tab's side
+    return {'trigger': 34 * SC, 'stick': marks['r_stick'], 'lower': marks['r_btn'], 'upper': marks['r_btn'], 'menu': 10 * SC}[key]   # trigger: the tab's side
 
 def leader(x0, y0, x1, y1, dot=True):
     d.line([(x0, y0), (x1, y1)], fill=DIM + (255,), width=LEADER_W)
     if dot: d.ellipse([x1 - 3, y1 - 3, x1 + 3, y1 + 3], fill=LIME + (255,))
 
-def side_label(pt, r, label_x, act, name, side, row_y=None):
-    """a leader from the control to its label's row (level unless row_y moves the row; side -1: left of label_x)"""
-    x, y0 = pt
-    y = y0 if row_y is None else row_y
+def side_label(pt, r, label_x, act, side):
+    """a level leader from the control to its label (side -1: label left of label_x, right-aligned)"""
+    x, y = pt
     end = label_x - 14 * side
-    leader(x + side * (r + 5), y0, end, y)
-    al = 'r' if side < 0 else 'l'
-    tracked(d, label_x, y + 9, act, ACT_F, LIME + (255,), 0.08, al)
-    if name: tracked(d, label_x, y + 34, name, NAME_F, LINE + (255,), 0.0, al)
+    leader(x + side * (r + 5), y, end, y)
+    tracked(d, label_x, y + 9, act, ACT_F, LIME + (255,), 0.08, 'r' if side < 0 else 'l')   # caps: baseline 9 under -> centred
 
-# the game's logo (908 x 388) fits 640 x 274 here; its lettering's baseline ("Tennis") is ~206 px
-# under the place's top, ~68 above the fitted logo's bottom: the tag stands on it, just after the logo
+# the game's logo (908 x 388, cropped to its drawn pixels by splash_logo.c) fits 640 x 273 here, its
+# top (the top of the "3") on the place's top. host_xr.c / splash_logo.c put the tag's bottom at
+# lg_splash_vr_at[1] from the fitted logo's bottom and its drawn left edge lg_splash_vr_at[0] after the
+# logo's right edge (the drawn group logo + gap + tag centred by measured pixels): the tag's top on
+# the logo's top, a gap after the "3"'s right edge
 LOGO_AT = (448, 52, 640, 274)
-VR_AT = (4, -70)
+LOGO_FH = LOGO_AT[2] * 388 // 908                       # 273, as splash_logo.c fits it
+TAG_GAP, TAG_TOP = 12, 2
+VR_AT = (TAG_GAP, TAG_TOP + VR_H - LOGO_FH)
 TITLE_AT = ((PANEL_W - TITLE_W) // 2, 52 + (274 - TITLE_H) // 2)
-cy = 536
-L = controller(572, cy, .9, True)
-Rm = controller(964, cy, .9, False)
-LX, RX = 392, 1144                                      # the outer columns' label edges
-rows = {'trigger': L['trigger'][1], 'stick': L['stick'][1]}
-rows['menu'] = rows['stick'] + (rows['stick'] - rows['trigger'])      # the grid's next row (the menu button sits a little higher)
-for key, act, name in (('trigger', 'TOP SPIN', 'Trigger'), ('stick', 'MOVE', 'Stick  \u00b7  click = Start'), ('menu', 'SETTINGS', 'Menu button')):
-    side_label(L[key], radius(L, key), LX, act, name, -1, rows[key])
-for key, act, name in (('trigger', 'TOP SPIN', 'Trigger'), ('stick', 'MOVE', 'Stick  \u00b7  click = Start')):
-    side_label(Rm[key], radius(Rm, key), RX, act, name, 1)
-for key, act in (('upper', 'LOB'), ('lower', 'SLICE')):  # the shared legend: Y / B, X / A
+SC = .9                                                 # the controllers' scale
+cy = 540
+HALF = 196                                              # the controllers' centres from the panel's centre
+L = controller(PANEL_W / 2 - HALF, cy, SC, True)
+Rm = controller(PANEL_W / 2 + HALF, cy, SC, False)
+OUT = 150                                               # the outer labels' edges from the controllers' centres
+LX, RX = PANEL_W / 2 - HALF - OUT, PANEL_W / 2 + HALF + OUT
+MOVE = 'MOVE \u00b7 START' if LABELS == 'start' else 'MOVE'
+side_label(L['stick'], radius(L, 'stick'), LX, MOVE, -1)
+side_label(L['menu'], radius(L, 'menu'), LX, 'SETTINGS', -1)
+side_label(Rm['stick'], radius(Rm, 'stick'), RX, MOVE, 1)
+for key, act in (('trigger', 'TOP SPIN'), ('upper', 'LOB'), ('lower', 'SLICE')):   # the shared legend
     (xl, yl), (xr, yr) = L[key], Rm[key]
     y = (yl + yr) / 2
     w = tracked_width(act, ACT_F, 0.08)
     tracked(d, PANEL_W / 2, y + 9, act, ACT_F, LIME + (255,), 0.08, 'm')
-    leader(PANEL_W / 2 - w / 2 - 12, y, xl + L['r_btn'] + 5, yl, False)
-    leader(PANEL_W / 2 + w / 2 + 12, y, xr - Rm['r_btn'] - 5, yr, False)
+    leader(PANEL_W / 2 - w / 2 - 12, y, xl + radius(L, key) + 5, yl, False)
+    leader(PANEL_W / 2 + w / 2 + 12, y, xr - radius(Rm, key) - 5, yr, False)
 BAR = (568, 806, 968, 809)
 tracked(d, PANEL_W // 2, BAR[1] - 16, 'LOADING', LOAD_F, DIM + (255,), 0.30, 'm')
 d.rectangle([BAR[0], BAR[1], BAR[2], BAR[3]], fill=FAINT + (255,))
@@ -274,7 +267,7 @@ img.alpha_composite(vr, VR[:2]); img.alpha_composite(title, TITLE[:2]); img.alph
 raw = img.tobytes()
 z = zlib.compress(raw, 9)
 with open(args[0], 'w') as f:
-    f.write('/* Generated by quest/tools/vt3_splash.py (tag %s; typeface Inter, OFL) - original artwork for the\n' % TAG)
+    f.write('/* Generated by quest/tools/vt3_splash.py (labels %s; typeface Inter, OFL) - original artwork for the\n' % LABELS)
     f.write(' * Quest start-up screen (host_xr.c). Do not edit; run the script.\n'
             ' * No game art: the title logo is read from the player\'s game files at\n'
             ' * start-up and composited into lg_splash_logo_at (splash_logo.c). */\n')
@@ -286,7 +279,7 @@ with open(args[0], 'w') as f:
     f.write(f'const int lg_splash_ball[4] = {{ {BALLR[0]}, {BALLR[1]}, {BALLR[2]}, {BALLR[3]} }};   /* rides on the line\'s end */\n')
     f.write(f'const int lg_splash_logo_at[4] = {{ {LOGO_AT[0]}, {LOGO_AT[1]}, {LOGO_AT[2]}, {LOGO_AT[3]} }};   /* the logo\'s place: x, y, w, h */\n')
     f.write(f'const int lg_splash_vr[4] = {{ {VR[0]}, {VR[1]}, {VR[2]}, {VR[3]} }};   /* the VR tag in the atlas */\n')
-    f.write(f'const int lg_splash_vr_at[2] = {{ {VR_AT[0]}, {VR_AT[1]} }};   /* from the fitted logo\'s bottom right */\n')
+    f.write(f'const int lg_splash_vr_at[2] = {{ {VR_AT[0]}, {VR_AT[1]} }};   /* the tag\'s drawn left edge after the fitted logo\'s right edge, its bottom from the logo\'s bottom (top on the logo\'s top) */\n')
     f.write(f'const int lg_splash_title[4] = {{ {TITLE[0]}, {TITLE[1]}, {TITLE[2]}, {TITLE[3]} }};   /* our own title in the atlas */\n')
     f.write(f'const int lg_splash_title_at[2] = {{ {TITLE_AT[0]}, {TITLE_AT[1]} }};   /* where it goes without the logo */\n')
     f.write('const char lg_splash_logo_file[] = "resource/sprite/I_ADV_titlelogo_us_KB.abr";   /* the player\'s, in the game folder */\n')
@@ -295,7 +288,7 @@ with open(args[0], 'w') as f:
     for i in range(0, len(z), 24):
         f.write(''.join(f'{b},' for b in z[i:i + 24]) + '\n')
     f.write('};\n')
-print(f'tag {TAG}: {W}x{H}, {len(raw)} bytes -> {len(z)} deflated')
+print(f'labels {LABELS}: {W}x{H}, {len(raw)} bytes -> {len(z)} deflated')
 if len(args) > 1:       # the panel without game files (our title), the line at 40 %
     prev = img.crop((0, 0, PANEL_W, PANEL_H))
     prev.alpha_composite(title, TITLE_AT)

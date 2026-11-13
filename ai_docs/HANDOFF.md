@@ -168,6 +168,22 @@ halves the rate). If any T-run fails, `adb install -r` a build of the
 committed submodule (or keep the `fade8ac` APK) before handing back.
 
 **Checkpoint log (build worker, newest first):**
+- **2026-11-13 start-up screen V3 COMMITTED (outer only, owner's three changes).**
+  `quest/tools/vt3_splash.py`: TOP SPIN joins LOB / SLICE as one legend in the
+  middle (top to bottom = trigger, Y/B, X/A; level leaders to both hands; the
+  trigger leader aims at the tab's visible middle, P(0,-121)); the VR tag is
+  orange (240, 90, 16) = the logo's swoosh orange (sampled ~(240, 84-96, 16)),
+  navy letters, 46 px high, superscript at the logo's top right
+  (`lg_splash_vr_at` {12, -225}: the runtime's bottom-anchored offset chosen so
+  the tag's top is 2 px under the fitted logo's top - the logo fits 640 x 273;
+  runtime / submodule unchanged); fallback title gets the tag at its top right
+  too. Grey sub-lines removed; `--labels start` (committed): the sticks read
+  "MOVE · START"; `--labels literal`: "MOVE". Outer columns OUT 150 px from
+  the controllers; measured label/controller extents 210-1326 (centre 768.0;
+  literal 274-1198, centre 736 - the controllers' axis kept on the panel's
+  centre). Pictures (owner's eyes only): `$VT3_PICS/vt3-splash/V3_{start,literal}_
+  {panel,headset}.png`, `V3_start_fallback_no_game_files.png`. macOS build +
+  86 unit tests OK; Quest APK built (old tree).
 - **2026-11-13 Quest runs R1 + R2 done; build 92b6f7b INSTALLED**
   (`/tmp/vt3q/T24/VirtuaTennis3VR_92b6f7b.apk`; outer 529ce17 / 104d28d).
   R1 (`lose` + `LINDBERGH_VT3_SPLIT=1`, the owner's vr.cfg, 170 s,
