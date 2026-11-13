@@ -25,6 +25,8 @@
 # LINDBERGH_FORCE_REPLAY in the runtime (hle_sega.c). Extra LINDBERGH_*
 # switches in the environment are passed through (mac) or added to env.txt
 # (quest), e.g. LINDBERGH_CXX_TRACE=1 or LINDBERGH_GAME_SHOT=3000,300.
+# VT3_Z_UNTIL=<frame> ends the menu script's shot taps there (default 3600;
+# 1890 lets the match intro fly-by play out).
 # VT3_EXTRA_KEYS="frame:key,..." adds key taps after the menu script's
 # (LINDBERGH_KEYS itself is the script's), e.g. shot-button taps to serve.
 #
@@ -82,7 +84,7 @@ keys() {
     local k="" f
     if [ "$1" = quest ]; then for f in $(seq 700 120 1500); do k="$k$f:1,"; done; fi
     local from=1500; [ "$1" = quest ] && from=1550
-    for f in $(seq $from 90 3600); do k="$k$f:z,"; done
+    for f in $(seq $from 90 "${VT3_Z_UNTIL:-3600}"); do k="$k$f:z,"; done   # VT3_Z_UNTIL=1890: no tap skips the match intro fly-by
     for f in 2000 2400 2800 3200; do k="$k$((f+45)):"$'\r'","; done
     printf '%s%s' "$k" "${VT3_EXTRA_KEYS:-}"
 }

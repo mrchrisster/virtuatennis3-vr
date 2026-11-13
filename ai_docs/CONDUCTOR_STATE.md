@@ -490,3 +490,8 @@ Owner worn: "flicker is gone without antialiasing". Runtime d15edf0 (classic.msa
 VT3 Classic Off / VR 2x, row on each Advanced page, Frame rate counter on Main) committed, pinned in
 both trees, installed after one smoke run (Classic msaa 0 read, picture normal). vr.cfg identical,
 env.txt 0 B, app stopped. Not pushed. Next: the intro sky.
+
+## 2026-11-13 ~14:55 intro sky not reproduced (build worker)
+Round 0 only: Quest Classic fly-by sky = macOS picture; Quest VR skips the fly-by, the first court frames'
+dome looks right ahead in both eyes. Unworn shots only look ahead - need the owner's description (mode,
+direction, court, what is weird). vt3-repro.sh VT3_Z_UNTIL added. Headset idle, app stopped, vr.cfg identical.
