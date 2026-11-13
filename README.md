@@ -110,8 +110,7 @@ quest/build.sh vt3
 quest/install.sh vt3 /path/to/disk0
 ```
 
-Start *Virtua Tennis 3 VR* from Unknown Sources. The APK holds code
-translated from your copy of the game: keep it to yourself.
+Start *Virtua Tennis 3 VR* from Unknown Sources. 
 
 ## Build and run on macOS
 
