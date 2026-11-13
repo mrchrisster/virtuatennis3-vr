@@ -469,3 +469,4 @@ end-of-game split; start-up screen V3.
 resume the Classic worker from the HANDOFF checkpoint log's top entry; do not
 push; do not pull / rebase virtuatennis3-vr without checking `git status -sb`
 (the owner edits README on GitHub).
+- Owner chose the start-up stick label: **"MOVE · START"** (the committed V3 variant; nothing to change).
