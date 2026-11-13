@@ -42,8 +42,9 @@ In VR:
   in VR from the broadcast camera's angle with soft fades between shots
   (*VR*, experimental), or off.
 - **Starts in VR** with the settings the developer plays with on a Quest 3
-  (anti-aliasing 2x, texture filtering 4x, shadows 4096, 120 Hz); lower
-  them in the panel on a Quest 3S / Quest Pro if the frame rate suffers.
+  (anti-aliasing 2x in VR, Off in Classic; texture filtering 4x, shadows 4096,
+  120 Hz); lower them in the panel on a Quest 3S / Quest Pro if the frame
+  rate suffers.
 
 Both modes:
 

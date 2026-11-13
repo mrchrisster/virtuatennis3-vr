@@ -484,3 +484,9 @@ Composite route failed (the black frames come from keeping the colour clears; th
 with clear+copy+one draw on macOS too); mitigation x2 + MSAA 4 gave no gain and broke 60 fps.
 Installed 7d4d920 (= defb69a behaviour + test switch), pinned in both trees, not pushed.
 Details at the top of HANDOFF 3.1.
+
+## 2026-11-13 ~14:35 Classic flicker fixed: anti-aliasing per mode (build worker)
+Owner worn: "flicker is gone without antialiasing". Runtime d15edf0 (classic.msaa / immersive.msaa,
+VT3 Classic Off / VR 2x, row on each Advanced page, Frame rate counter on Main) committed, pinned in
+both trees, installed after one smoke run (Classic msaa 0 read, picture normal). vr.cfg identical,
+env.txt 0 B, app stopped. Not pushed. Next: the intro sky.

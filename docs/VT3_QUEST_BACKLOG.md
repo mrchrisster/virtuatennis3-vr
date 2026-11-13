@@ -19,12 +19,37 @@ fix works live in `VT3_PORTING_GUIDE.md` section 8.
 ## To do
 
 ### Bugs
-- [ ] **Classic texture flicker remains (owner, 2026-11-13, defb69a worn)**:
-      aliasing in the game's own picture during camera moves (side boards,
-      stand edges, far crowd). Classic on the Quest leaves out the game's
-      depth-of-field / glare composite (a VR rule that also catches Classic's
-      flat frames); keeping it gave black frames under multiview - to fix
-      next (HANDOFF 3.1, 2026-11-13 ~11:45).
+- [x] **Classic texture flicker - FIXED: anti-aliasing off in Classic**
+      (owner, worn, 2026-11-13: "flicker is gone without antialiasing").
+      Anti-aliasing is now per mode (runtime d15edf0): vr.cfg `classic.msaa`
+      / `immersive.msaa`, VT3 defaults Classic Off / VR 2x, the row on each
+      Advanced page; an older file's single `msaa` applies to its `mode`
+      (the owner's `mode immersive` + `msaa 2` -> VR 2x, Classic Off). The
+      earlier conclusions ("the host's sampling of a stretched picture",
+      then "the game's own aliasing / the left-out depth-of-field composite")
+      were wrong: the measures (A-B-A blinking pixels in consecutive game
+      shots, unworn) never separated the flicker from motion aliasing, and
+      the round-1/3 headset A/Bs kept MSAA on; the owner's worn A/B settled
+      it. Kept from round 1: the picture-sized Classic eye array (x1.5,
+      2040x1152) + box filter - a GPU win on its own (Classic match 14-16 ->
+      8-10 ms) and harmless with AA off (Quest smoke run S1: picture normal,
+      `[xr] flat screen: 866 x 504 eye pixels (60 deg across) ... 2.36 x 2.29
+      texels a pixel`).
+- [ ] **Parked: why MSAA flickers in Classic but not in VR** (no more runs
+      on it for now). Best understanding: with
+      GL_OVR_multiview_multisampled_render_to_texture each mid-frame read of
+      the eyes (VT3 makes ~3 whole-screen copies a frame: ground shadow mask
+      45, video board / depth-of-field 33/34) forces an implicit resolve and
+      the multisampled tiles are undefined afterwards unless re-seeded. In VR
+      world frames each pass starts with a colour clear (or the sky), so the
+      undefined tiles are overwritten; in Classic every frame is flat and
+      stereo.c DROPS the colour clears before those copies (the flat-frame
+      rule from 7675d88, which also left the game's own restore composite
+      out), so the later passes draw over tiles that are "whatever the
+      resolve left" - per tile and per frame different, seen as textures
+      blinking. Candidates if AA in Classic is wanted later: keep Classic's
+      clears with the composite (round 2 went black - needs the copy-back
+      under multiview), or draw the resolved layer back after each copy.
 - [ ] **T14: a short glitch at the start of every point (VR)** (owner,
       2026-11-12, build 9dd8505). Cause (macOS camera log): at each point's
       start the game puts its court camera ~10 m nearer and 3 m lower, then
@@ -132,7 +157,7 @@ and asked that all progress and research be written to the docs.
       GPU per frame in a match 14-16 ms -> 8-10 ms (unattended, same build,
       env A/B). It is in the shared VR path (eye buffers); the quad-layer
       redesign (step 2) remains the full fix. **Owner, worn: still
-      flickers** - see the open item below.
+      flickers** - the cause was anti-aliasing in Classic (see To do, fixed).
 - [x] **Screen size Small / Medium / Big** in place of Screen distance
       (2-5 m moved the screen but kept its angle) - 48 / 60 / 74 degrees
       across, Medium = the old look; vr.cfg `screen_size`; an older file's
@@ -161,7 +186,9 @@ and asked that all progress and research be written to the docs.
 - [x] **Defaults = the owner's headset settings, VT3 only** (2026-11-13, owner:
       "make current settings default", then "all settings currently in
       headset"): VR mode first, Replays and reaction cams Flat screen, overlays hidden
-      (both modes), shadows 4096 (VR), anti-aliasing 2x, texture filtering 4x,
+      (both modes), shadows 4096 (VR), anti-aliasing 2x in VR / Off in Classic
+      (per-mode on the Advanced pages; Frame rate counter moved to Main), texture
+      filtering 4x,
       120 Hz, foveation high, screen 2.5 m, HUD 10, frame counter off, coins
       automatic, save on - for a fresh install, missing keys and Restore
       defaults; other games keep theirs (per-game hook, guide 7.5.1
