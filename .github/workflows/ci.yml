@@ -5,23 +5,62 @@ on:
   pull_request:
     branches: [main]
 
+permissions:
+  contents: read
+
 jobs:
   macos:
-    # CI has no game, so this configures without lifted code: CMake then
-    # builds only the runtime's self-check (OpenGL host) against the pinned
-    # submodule, and the runtime's unit tests run. No game files involved.
+    # CI has no game, so nothing is lifted: CMake configures without
+    # games/vt3/generated and builds only the runtime's self-check (OpenGL
+    # host) against the pinned submodule; the recompiler's and the runtime's
+    # unit tests run. No game files are involved anywhere.
     runs-on: macos-15
+    timeout-minutes: 30
+    env:
+      OPENXR_SDK_TAG: release-1.1.49   # the loader version quest/deps.sh uses
     steps:
       - uses: actions/checkout@v4
         with:
           submodules: recursive
-      - run: brew install ninja sdl2
-      - name: Lifter and runtime unit tests
+
+      - name: Nothing of the game is tracked
         run: |
-          python3 -m venv .venv
-          .venv/bin/python -m pip install capstone pyelftools
-          .venv/bin/python lindberghrecomp/tools/recomp/test_driver.py
-          for t in lindberghrecomp/tests/test_*.py; do echo "== $t"; .venv/bin/python "$t"; done
+          bad=$(git ls-files --recurse-submodules | grep -E '(^|/)generated/|\.(apk|aab|so|elf|efo|afs|adx|bin|iso|chd)$|(^|/)\.DS_Store$|^games/[^/]*/.*recomp_[^/]*\.c$' || true)
+          if [ -n "$bad" ]; then echo "tracked files that must not be in the repository:"; echo "$bad"; exit 1; fi
+
+      - name: Shell scripts parse
+        run: |
+          for f in scripts/*.sh; do bash -n "$f"; done
+          for f in quest/*.sh; do sh -n "$f"; done
+          scripts/build-quest-from-my-copy.sh --help > /dev/null
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Python packages
+        run: |
+          python -m venv .venv
+          .venv/bin/python -m pip install --disable-pip-version-check -r requirements-dev.txt
+
+      - name: OpenXR headers (for the XR actions test)
+        run: |
+          mkdir -p "$RUNNER_TEMP/openxr/openxr"
+          for h in openxr.h openxr_platform_defines.h; do
+            curl -fsSL -o "$RUNNER_TEMP/openxr/openxr/$h" \
+              "https://raw.githubusercontent.com/KhronosGroup/OpenXR-SDK/$OPENXR_SDK_TAG/include/openxr/$h"
+          done
+          echo "LINDBERGH_TEST_OPENXR_HEADERS=$RUNNER_TEMP/openxr" >> "$GITHUB_ENV"
+
+      - name: Recompiler self-test
+        run: .venv/bin/python lindberghrecomp/tools/recomp/test_driver.py
+
+      - name: Unit tests
+        working-directory: lindberghrecomp
+        run: ../.venv/bin/python -m unittest discover -s tests -p 'test_*.py' -v
+
+      - run: brew install ninja sdl2
       - run: cmake -S . -B build-mac -G Ninja -DLINDBERGH_RENDERER=OPENGL
       - run: cmake --build build-mac
-      - run: build-mac/lindberghrecomp/lindbergh_rt_selftest
+      - name: Runtime self-check
+        run: build-mac/lindberghrecomp/lindbergh_rt_selftest

@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # build-macos.sh - lift your own copy of a game and build it for macOS.
 #
-#   ./scripts/build-macos.sh [--opengl|--vulkan] vt3 /path/to/disk0
+#   ./scripts/build-macos.sh [--opengl|--vulkan] [--lift-only] [--relift] vt3 /path/to/disk0
 #
 # Builds the OpenGL renderer by default (into build-mac/), the one Virtua
 # Tennis 3 is tested with; --vulkan builds the runtime's native Vulkan
@@ -11,14 +11,23 @@
 # game.conf says what the game's folder holds. Nothing from it is copied into
 # this repo; the lifted C goes to the gitignored games/<game>/generated/.
 #
-# Safe to run again: unchanged lifted files keep their timestamps, so a
-# rebuild only recompiles what moved.
+# --lift-only stops after the lift (what the Quest build needs; no SDL2).
+# Safe to run again: the lift is skipped when the game, the recompiler and its
+# Python packages are what the last lift used (generated/.lift-stamp;
+# --relift lifts anyway), and unchanged lifted files keep their timestamps,
+# so a rebuild only recompiles what moved.
 set -euo pipefail
 
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 TOOLKIT="$ROOT/lindberghrecomp"
-RENDERER=OPENGL
-case "${1:-}" in --opengl) shift ;; --vulkan) RENDERER=VULKAN; shift ;; esac
+RENDERER=OPENGL LIFT_ONLY=0 RELIFT=0
+while :; do
+    case "${1:-}" in
+        --opengl) shift ;; --vulkan) RENDERER=VULKAN; shift ;;
+        --lift-only) LIFT_ONLY=1; shift ;; --relift) RELIFT=1; shift ;;
+        *) break ;;
+    esac
+done
 ID="${1:-}"
 [ -n "$ID" ] && [ -f "$ROOT/games/$ID/game.conf" ] || {
     printf 'usage: %s <game> /path/to/the/game\ngames: %s\n' "$0" "$(ls "$ROOT/games" | tr '\n' ' ')" >&2; exit 1; }
@@ -46,14 +55,24 @@ say "$TITLE: $GAME"
 
 # ---- tools ----
 missing=()
-for t in cmake ninja; do command -v "$t" >/dev/null || missing+=("$t"); done
-PY="$(command -v python3.11 || command -v python3 || true)"
-[ -n "$PY" ] || missing+=("python@3.11")
+# Python 3.10+: $PYTHON, else the newest python3.x on the PATH, else python3
+PY="${PYTHON:-}"
+if [ -z "$PY" ]; then
+    for v in 3.12 3.11 3.13 3.10 3.14 ""; do
+        c="$(command -v "python$v" 2>/dev/null || command -v "python${v:-3}" 2>/dev/null || true)"
+        [ -n "$c" ] && "$c" -c 'import sys; sys.exit(sys.version_info < (3, 10))' 2>/dev/null && { PY="$c"; break; }
+    done
+    [ -n "$PY" ] || PY="$(command -v python3 || true)"
+fi
+[ -n "$PY" ] || missing+=("python@3.12")
 PREFIX="$(brew --prefix 2>/dev/null || true)"
-# sdl2, or sdl2-compat (what newer Homebrew installs for "sdl2"): either leaves
-# a CMake package or sdl2-config behind
-[ -d "${PREFIX:-/opt/homebrew}/lib/cmake/SDL2" ] || command -v sdl2-config >/dev/null || missing+=("sdl2")
-if [ "$RENDERER" = VULKAN ]; then
+if [ "$LIFT_ONLY" = 0 ]; then
+    for t in cmake ninja; do command -v "$t" >/dev/null || missing+=("$t"); done
+    # sdl2, or sdl2-compat (what newer Homebrew installs for "sdl2"): either leaves
+    # a CMake package or sdl2-config behind
+    [ -d "${PREFIX:-/opt/homebrew}/lib/cmake/SDL2" ] || command -v sdl2-config >/dev/null || missing+=("sdl2")
+fi
+if [ "$LIFT_ONLY" = 0 ] && [ "$RENDERER" = VULKAN ]; then
     [ -e "${PREFIX:-/opt/homebrew}/lib/libvulkan.dylib" ] || missing+=("vulkan-loader")
     [ -d "${PREFIX:-/opt/homebrew}/include/vulkan" ] || missing+=("vulkan-headers")
     for t in glslangValidator:glslang spirv-cross:spirv-cross spirv-opt:spirv-tools; do
@@ -62,7 +81,7 @@ if [ "$RENDERER" = VULKAN ]; then
 fi
 [ ${#missing[@]} -eq 0 ] || die "missing: ${missing[*]}  ->  brew install ${missing[*]}"
 xcrun --show-sdk-path >/dev/null 2>&1 || die "no macOS SDK  ->  xcode-select --install"
-"$PY" -c 'import sys; sys.exit(sys.version_info < (3, 10))' || die "$PY is too old; need Python 3.10+"
+"$PY" -c 'import sys; sys.exit(sys.version_info < (3, 10))' || die "$PY is too old; need Python 3.10+  ->  brew install python@3.12 (or PYTHON=/path/to/python3.x)"
 
 if [ ! -d "$TOOLKIT/pcrecomp/tools" ]; then
     say "fetching submodules"
@@ -73,10 +92,32 @@ if [ ! -x "$VENV/bin/python" ]; then
     say "creating $VENV"
     "$PY" -m venv "$VENV"
 fi
-"$VENV/bin/python" -m pip install -q --disable-pip-version-check capstone pyelftools
+"$VENV/bin/python" -c 'import sys; sys.exit(sys.version_info < (3, 10))' ||
+    die "$VENV was made with a Python older than 3.10: delete it and run again"
+"$VENV/bin/python" -m pip install -q --disable-pip-version-check -r "$ROOT/requirements-dev.txt"
 VPY="$VENV/bin/python"
 
+# ---- is the last lift still current? ----
+# The game's files, the recompiler's sources and the lifter's packages: the
+# same inputs give the same C, so the lift (minutes) is skipped.
+sha() { shasum -a 256 "$1" | cut -d' ' -f1; }
+STAMP="$( {
+    echo "elf $(sha "$GAME/$ELF")"
+    for f in ${SOLIBS:-}; do echo "solib $f $(sha "$GAME/$f")"; done
+    [ -f "$ROOT/games/$ID/names.txt" ] && echo "names $(sha "$ROOT/games/$ID/names.txt")"
+    (cd "$TOOLKIT" && find tools pcrecomp/tools -name '*.py' -type f | LC_ALL=C sort | xargs shasum -a 256)
+    "$VPY" -m pip freeze --disable-pip-version-check 2>/dev/null | grep -i -E '^(capstone|pyelftools)==' || true
+} | shasum -a 256 | cut -d' ' -f1)"
+if [ "$RELIFT" = 0 ] && [ "$(cat "$GEN/.lift-stamp" 2>/dev/null)" = "$STAMP" ] && ls "$GEN"/recomp_funcs_*.c >/dev/null 2>&1; then
+    say "the lifted code in ${GEN#"$ROOT"/} is current (--relift to lift again)"
+    LIFTED=1
+else
+    LIFTED=0
+fi
+
 # ---- lift ----
+if [ "$LIFTED" = 0 ]; then
+rm -f "$GEN/.lift-stamp"
 STAGE="$(mktemp -d "${TMPDIR:-/tmp}/$ID-lift.XXXXXX")"
 trap 'rm -rf "$STAGE"' EXIT
 GLH="$(xcrun --show-sdk-path)/System/Library/Frameworks/OpenGL.framework/Headers"
@@ -116,9 +157,12 @@ for f in "$GEN"/*; do
     case "${f##*/}" in *_android.c|*.elf.sha256) continue ;; esac  # the Quest build's, made separately
     [ -e "$STAGE/${f##*/}" ] || rm -f "$f"
 done
+echo "$STAMP" > "$GEN/.lift-stamp"
+rm -rf "$STAGE"; trap - EXIT
+fi
+[ "$LIFT_ONLY" = 0 ] || { say "lifted code ready in ${GEN#"$ROOT"/}"; exit 0; }
 
 # ---- build ----
-say "building"
 say "building ($RENDERER renderer)"
 cmake -S "$ROOT" -B "$BUILD" -G Ninja -DCMAKE_BUILD_TYPE=RelWithDebInfo -DLINDBERGH_RENDERER="$RENDERER" \
       ${PREFIX:+-DCMAKE_PREFIX_PATH="$PREFIX"} >/dev/null
