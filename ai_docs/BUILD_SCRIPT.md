@@ -75,6 +75,9 @@ Logs per step: `build-quest/logs/<step>.log` (last 40 lines shown on failure).
   none of lindbergh.ini / nvram / vr.cfg / env.txt / logs. Not run on a headset.
 - [x] old tree's submodule pin: moved to b8ddc4c by the graphics worker (both trees pin it)
 
+- [x] `--mac` in the same fresh clone: build-mac/vt3 in 1m26s (lift reused
+  from the stamp). Built only, not run.
+
 ## Concurrency note
 
 Another worker committed to this repo during this work (83c3396, submodule
