@@ -184,6 +184,15 @@ working on its area):
 
 ## Done (see the backlog's Done list for the full set)
 
+- 2026-11-13 **Split-screen ghost (owner's item 7) - fixed, Quest-verified**
+  (lindberghrecomp `6a95ff5`, `stereo.c` `pane_prelude_begin`). The two-pane
+  camera draws each pane's shadows whole-screen and reads its ground shadow
+  mask pane-local; the second pane's dropped colour clear left the left pane
+  in that mask (the right pane's left half showed it squeezed, dark). Not an
+  anti-aliasing bug. The second pane's clear, shadows and mask copy now go to
+  the side target. `LINDBERGH_PANE_PRELUDE=0` off. Details: lindbergh-recomp-ports
+  HANDOFF 3.1 top.
+
 - 2026-11-12 **T16: Save progress (IC card as a save game) - macOS-verified,
   Quest smoke run OWED, default Off** (guide section 8 "Save progress";
   research Outcome). `vt3_save.c` + `hle_sega.c` hooks; `save on|off`,

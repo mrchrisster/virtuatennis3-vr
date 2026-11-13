@@ -366,3 +366,15 @@ turning the head, frame rate at 72/90/120 Hz, the new stands and sky.
   already drawn; LINDBERGH_PANE_CLEAR=0 off; msaa 0 unchanged) + texture
   filtering log rate-limited. Unverified on the headset: safety diff in
   ai_docs/wip/item7-split-msaa-pane-clear-lindberghrecomp.diff. Headset run next.
+
+## 2026-11-13 ~05:50 (build/headset worker: item 7 done)
+- Split-screen ghost FIXED: lindberghrecomp 6a95ff5 (both trees pin it),
+  build installed. Not an MSAA bug (R2's "clean" frame had a bright left pane):
+  each pane's shadows are drawn whole-screen and its mask is read pane-local;
+  the dropped colour clear left the left pane in the right pane's mask. The
+  second pane's clear/shadows/mask copy now go to the side target
+  (LINDBERGH_PANE_PRELUDE=0 off). Anti-aliasing 2x stays the default.
+- Headset S4: split frames clean both eyes, right pane's shadow present; GPU
+  split window 5.4 ms avg (90% 8.3, worst 9.8), rally 4.0 ms (unworn).
+  Texture filtering log rate-limited. env.txt 0, vr.cfg identical, app stopped.
+- Not checked: Classic worn (same flat code path), end-of-game split.
