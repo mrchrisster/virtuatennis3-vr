@@ -79,7 +79,9 @@ Both modes:
 ## Build for Meta Quest
 
 There is no download of the app: it holds code translated from the game, so
-everyone builds their own from their own copy. One command does it:
+everyone builds their own from their own copy. You can run the command below
+yourself or compile and install the APK by pointing Antigravity, Claude, or
+ChatGPT to this repository (with your local `disk0` folder). One command does it:
 
 ```sh
 git clone --recursive https://github.com/mrchrisster/virtuatennis3-vr.git
