@@ -27,7 +27,7 @@ NDK=${ANDROID_NDK:-$SDK/ndk/27.3.13750724}
 DEPS=${DEPS:-$ROOT/../deps}
 SDL_SRC=${SDL_SRC:-$DEPS/SDL2-2.32.10}
 [ -n "$JAVA_HOME" ] || [ ! -d /opt/homebrew/opt/openjdk@21 ] || export JAVA_HOME=/opt/homebrew/opt/openjdk@21/libexec/openjdk.jdk/Contents/Home
-case "$(uname -s)" in Darwin) HOST=darwin-x86_64 ;; *) HOST=linux-x86_64 ;; esac
+case "$(uname -s)" in Darwin) HOST=darwin-x86_64 ;; MINGW*|MSYS*|CYGWIN*) HOST=windows-x86_64 ;; *) HOST=linux-x86_64 ;; esac
 GAME=
 if [ "$1" = --with-game ]; then
     GAME=$(find_game "$2")

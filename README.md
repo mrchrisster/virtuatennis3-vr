@@ -127,6 +127,25 @@ start-up with "Game Program Not Found".
 
 Start *Virtua Tennis 3 VR* from Unknown Sources.
 
+### Build on Windows (Meta Quest)
+
+Native Windows (PowerShell + Git Bash, no WSL required):
+
+1. Install the build tools (e.g. via `winget`):
+   ```powershell
+   winget install Git.Git Kitware.CMake Ninja-build.Ninja Microsoft.OpenJDK.21 Python.Python.3.12
+   ```
+2. Install the Android SDK (`platform-tools`, `platforms;android-35`, `build-tools;35.0.0`, and `ndk;27.3.13750724`) into `%LOCALAPPDATA%\Android\Sdk` (via Android Studio's SDK Manager or Android Command Line Tools `sdkmanager`).
+3. Run the Windows build script from a PowerShell prompt:
+   ```powershell
+   git clone --recursive https://github.com/mrchrisster/virtuatennis3-vr.git
+   cd virtuatennis3-vr
+   .\scripts\build-quest-windows.ps1 C:\path\to\disk0            # -> quest\VirtuaTennis3VR.apk
+   .\scripts\build-quest-windows.ps1 -Install C:\path\to\disk0   # ...and onto the headset
+   ```
+
+Pass `-Check` to verify tools and your `disk0` folder without building, `-Relift` to force re-lifting, or `-AllowDamagedGame` if you have a known truncated `vt3.bin` dump.
+
 ### Troubleshooting
 
 - **"lib/libCg.so is missing" / "not the one the port is built against"**
