@@ -508,4 +508,4 @@ camera (both initUva skipped) - black/streaks, galleria from above. Not fixed ye
 Two faults: Classic glare at x1.5 rippled round lights in the sky (all venues, worst Usa1N); VR intro walk-out on
 Eng1F / Fin0E drawn in the world from the court camera. Runtime b003910 (both fixes) committed, pinned in both trees,
 installed; Quest-checked unworn (Usa1N + Aus1F Classic, Eng1F + Fin0E VR). 15 headset runs, vr.cfg identical,
-env.txt 0 B, app stopped, save off in every run. Not pushed. Owner to judge worn. Pictures: ~/Desktop/Claude/vt3-bugs/intro_sky_*.png.
+env.txt 0 B, app stopped, save off in every run. Not pushed. Owner to judge worn. Pictures: $VT3_PICS/vt3-bugs/intro_sky_*.png.
