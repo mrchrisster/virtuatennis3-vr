@@ -57,7 +57,6 @@ static const LgGameProfile k_profile = {
     .width = 1360, .height = 768,
     .pace_fps = 60,
     .joystick = 1,
-    .no_test_buttons = 1,           /* Test ends the game (main returns 9), Service does nothing: no panel rows, no keys (owner, 2026-11-13) */
     .glx_sgix_pbuffer = 1,
     .sysdata_region = 1,            /* the language: the region byte of the EEPROM's system data (Language row, hle_sega.c) */
     .vr = {
