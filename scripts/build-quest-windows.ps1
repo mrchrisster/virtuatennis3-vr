@@ -271,8 +271,8 @@ if (-not (Test-Path $Keystore)) {
 
 # =========================================================================
 Say "setting up Python virtual environment"
-if (-not (Test-Path (Join-Path $Toolkit "pcrecomp\tools"))) {
-    Say "fetching submodules"
+if (Test-Path (Join-Path $Root ".git")) {
+    Say "syncing submodules"
     & git -C $Root submodule update --init --recursive
     if ($LASTEXITCODE -ne 0) { Die "git submodule update failed" }
 }
@@ -364,14 +364,17 @@ Ok "built $ApkPath ($((Get-Item $ApkPath).Length) bytes)"
 if ($Install) {
     Say "installing on Meta Quest"
     $adbPath = if ($AdbExe -is [System.Management.Automation.ApplicationInfo]) { $AdbExe.Source } else { $AdbExe.FullName }
-    $devs = & $adbPath devices | Select-String '\bdevice$'
-    if (-not $devs) { Die "no Quest detected via adb (enable Developer Mode, connect USB, and accept Allow USB debugging)" }
+    $devs = @(& $adbPath devices | Select-String '\bdevice$')
+    if ($devs.Count -eq 0) { Die "no Quest detected via adb (enable Developer Mode, connect USB, and accept Allow USB debugging)" }
+    if ($devs.Count -gt 1 -and -not $env:ANDROID_SERIAL) { Die "multiple adb devices connected; set `$env:ANDROID_SERIAL to the target Quest serial" }
     if (-not $Yes) {
         $ans = Read-Host "Install VirtuaTennis3VR.apk and copy game files to /sdcard/VirtuaTennis3? [y/N]"
         if ($ans -notmatch '^[Yy]') { Die "cancelled" }
     }
     & $adbPath install -r $ApkPath
     if ($LASTEXITCODE -ne 0) { Die "adb install failed" }
+    & $adbPath shell appops set --uid org.lindbergh.vt3.vr MANAGE_EXTERNAL_STORAGE allow
+    if ($LASTEXITCODE -ne 0) { Die "adb appops set MANAGE_EXTERNAL_STORAGE failed" }
     & $adbPath shell mkdir -p /sdcard/VirtuaTennis3
     foreach ($part in @("vt3_Lindbergh", "shader", "lib")) {
         $srcPart = Join-Path $Game $part
