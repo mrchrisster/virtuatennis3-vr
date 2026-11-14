@@ -495,3 +495,11 @@ env.txt 0 B, app stopped. Not pushed. Next: the intro sky.
 Round 0 only: Quest Classic fly-by sky = macOS picture; Quest VR skips the fly-by, the first court frames'
 dome looks right ahead in both eyes. Unworn shots only look ahead - need the owner's description (mode,
 direction, court, what is weird). vt3-repro.sh VT3_Z_UNTIL added. Headset idle, app stopped, vr.cfg identical.
+
+## 2026-11-13 ~15:45 intro sky found: two per-venue faults (build worker)
+Venues: r0 Ger3M, r1 Aus1F, r2 Fra1F, r3 Usa1N (night), r4 Eng1F, r5/6 Fin0E (fresh save r0: Ita3F; Spa3E not reached).
+Classic (all venues, worst Usa1N): the game's glare chain drawn at x1.5 since defb69a ripples into stripes/blocks
+round lights in the sky - fix written (render targets at x1 in Classic picture mode, stereo.c scale_target),
+Quest-checked on Usa1N + Aus1F, GPU 4.2 ms; UNCOMMITTED, diff in ai_docs/wip/, WIP APK installed.
+VR (Eng1F, Fin0E only): the intro walk-out (EntranceLoop ~480 frames) is drawn in the world with the court
+camera (both initUva skipped) - black/streaks, galleria from above. Not fixed yet. Details: HANDOFF checkpoint log top.
