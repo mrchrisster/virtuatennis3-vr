@@ -144,7 +144,10 @@ Native Windows (PowerShell + Git Bash, no WSL required):
    .\scripts\build-quest-windows.ps1 -Install C:\path\to\disk0   # ...and onto the headset
    ```
 
-Pass `-Check` to verify tools and your `disk0` folder without building, `-Relift` to force re-lifting, or `-AllowDamagedGame` if you have a known truncated `vt3.bin` dump.
+Pass `-Check` to verify tools and your `disk0` folder without building, or `-Relift` to force re-lifting.
+
+> [!WARNING]
+> **Missing or damaged `.efo` player models (`vt3.bin` dumps):** Some dumps of `vt3.bin` are cut short, leaving 11–12 player model `.efo` files (James Blake and Mario Ancic) in `vt3_Lindbergh/resource/model/player/` empty, missing, or damaged. The build script checks for these and stops by default. If you bypass the check with `-AllowDamagedGame` (or `LINDBERGH_ALLOW_DAMAGED_GAME=1`), the game will boot and play, **but will crash in tournaments** as soon as a match loads James Blake (round 2 of Road to the Championship) or Mario Ancic. Replace those `.efo` files from a complete Rev. C copy to avoid crashes.
 
 ### Troubleshooting
 

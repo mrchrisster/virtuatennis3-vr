@@ -230,12 +230,24 @@ foreach ($kv in $PlayerModels.GetEnumerator()) {
     }
 }
 if ($Damaged.Count -gt 0) {
-    Warn "incomplete game tree (12 checked player models had $($Damaged.Count) issue(s)):"
-    foreach ($d in $Damaged) { Write-Host "        $d" }
+    Write-Host ""
+    Write-Host "========================================================================" -ForegroundColor Red
+    Write-Host "  WARNING: INCOMPLETE GAME TREE - MISSING / DAMAGED .efo PLAYER MODELS  " -ForegroundColor Red
+    Write-Host "========================================================================" -ForegroundColor Red
+    Write-Host "  $($Damaged.Count) of 12 checked player model (.efo) files are missing, empty, or damaged:" -ForegroundColor Yellow
+    foreach ($d in $Damaged) { Write-Host "    - $d" -ForegroundColor Yellow }
+    Write-Host ""
+    Write-Host "  The game will start and play, but CRASHES during a tournament as soon" -ForegroundColor Yellow
+    Write-Host "  as a match needs James Blake (round 2 of Road to the Championship) or" -ForegroundColor Yellow
+    Write-Host "  Mario Ancic. Some dumps of vt3.bin are cut short; copy these .efo" -ForegroundColor Yellow
+    Write-Host "  files from a complete copy (Rev. C has them all) into:" -ForegroundColor Yellow
+    Write-Host "    $ModelDir" -ForegroundColor Cyan
+    Write-Host "========================================================================" -ForegroundColor Red
+    Write-Host ""
     if (-not $AllowDamagedGame -and $env:LINDBERGH_ALLOW_DAMAGED_GAME -ne "1") {
-        Die "fix the game files above or pass -AllowDamagedGame (or set LINDBERGH_ALLOW_DAMAGED_GAME=1)"
+        Die "fix the .efo files above or pass -AllowDamagedGame (or set LINDBERGH_ALLOW_DAMAGED_GAME=1)"
     }
-    Warn "continuing because -AllowDamagedGame / LINDBERGH_ALLOW_DAMAGED_GAME=1 is set"
+    Warn "continuing with damaged .efo files because -AllowDamagedGame / LINDBERGH_ALLOW_DAMAGED_GAME=1 is set"
 } else {
     Ok "player models intact"
 }
