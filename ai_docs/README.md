@@ -184,6 +184,19 @@ working on its area):
 
 ## Done (see the backlog's Done list for the full set)
 
+- 2026-11-13 **Intro sky "weird in some stadiums" - two per-venue faults, fixed, Quest-verified
+  unworn** (lindberghrecomp `b003910`; guide section 8 "The match intro per venue"). Venues by round
+  (Save progress off): 0 Ger3M Duesseldorf, 1 Aus1F Melbourne, 2 Fra1F Paris, 3 Usa1N New York
+  (night), 4 Eng1F London, 5-6 Fin0E Milan (SPT Final), 7+ Ger3M; a fresh save's round 0 is Ita3F.
+  Classic: since defb69a the game's glare chain ran at x1.5 and rippled into stripes / blocks round
+  every light in the sky (worst on Usa1N's floodlights) - render targets now at the game's size in
+  Classic (`LINDBERGH_XR_TARGET_K=0` old). VR: on London and the Final the intro starts with a
+  walk-out that the fly-by skip did not end (~8 s drawn in the world from the court camera: black
+  with streaks, the galleria seen from above) - now left out as on the other venues
+  (`LINDBERGH_VT3_SKIP_WALKOUT=0` keeps it). Test note: every venue's intro unattended =
+  `VT3_Z_UNTIL=1890 scripts/vt3-repro.sh round<N> ...`; Eng1F's / Fin0E's Classic intro lasts to
+  frame ~2430 on the Quest. Details: lindbergh-recomp-ports HANDOFF checkpoint log top.
+
 - 2026-11-13 **Split-screen ghost (owner's item 7) - fixed, Quest-verified**
   (lindberghrecomp `6a95ff5`, `stereo.c` `pane_prelude_begin`). The two-pane
   camera draws each pane's shadows whole-screen and reads its ground shadow

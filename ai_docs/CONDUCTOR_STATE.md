@@ -503,3 +503,9 @@ round lights in the sky - fix written (render targets at x1 in Classic picture m
 Quest-checked on Usa1N + Aus1F, GPU 4.2 ms; UNCOMMITTED, diff in ai_docs/wip/, WIP APK installed.
 VR (Eng1F, Fin0E only): the intro walk-out (EntranceLoop ~480 frames) is drawn in the world with the court
 camera (both initUva skipped) - black/streaks, galleria from above. Not fixed yet. Details: HANDOFF checkpoint log top.
+
+## 2026-11-13 ~16:30 intro sky fixed (build worker)
+Two faults: Classic glare at x1.5 rippled round lights in the sky (all venues, worst Usa1N); VR intro walk-out on
+Eng1F / Fin0E drawn in the world from the court camera. Runtime b003910 (both fixes) committed, pinned in both trees,
+installed; Quest-checked unworn (Usa1N + Aus1F Classic, Eng1F + Fin0E VR). 15 headset runs, vr.cfg identical,
+env.txt 0 B, app stopped, save off in every run. Not pushed. Owner to judge worn. Pictures: ~/Desktop/Claude/vt3-bugs/intro_sky_*.png.
