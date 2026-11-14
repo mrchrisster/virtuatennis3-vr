@@ -240,7 +240,7 @@ if ($Damaged.Count -gt 0) {
     Write-Host "  The game will start and play, but CRASHES during a tournament as soon" -ForegroundColor Yellow
     Write-Host "  as a match needs James Blake (round 2 of Road to the Championship) or" -ForegroundColor Yellow
     Write-Host "  Mario Ancic. Some dumps of vt3.bin are cut short; copy these .efo" -ForegroundColor Yellow
-    Write-Host "  files from a complete copy (Rev. C has them all) into:" -ForegroundColor Yellow
+    Write-Host "  files from a complete copy (e.g. Rev. A or Rev. C) into:" -ForegroundColor Yellow
     Write-Host "    $ModelDir" -ForegroundColor Cyan
     Write-Host "========================================================================" -ForegroundColor Red
     Write-Host ""
