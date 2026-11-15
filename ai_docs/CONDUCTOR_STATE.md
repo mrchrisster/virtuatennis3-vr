@@ -509,3 +509,14 @@ Two faults: Classic glare at x1.5 rippled round lights in the sky (all venues, w
 Eng1F / Fin0E drawn in the world from the court camera. Runtime b003910 (both fixes) committed, pinned in both trees,
 installed; Quest-checked unworn (Usa1N + Aus1F Classic, Eng1F + Fin0E VR). 15 headset runs, vr.cfg identical,
 env.txt 0 B, app stopped, save off in every run. Not pushed. Owner to judge worn. Pictures: $VT3_PICS/vt3-bugs/intro_sky_*.png.
+
+## 2026-11-15 multiplayer direction (owner)
+- Research: `ai_docs/research/local-multiplayer-netplay.md` (and `versus-two-quests.md`).
+- **Owner's decision: the goal is Quest 3 players playing each other - NO
+  streaming from a Mac** (video or GL stream: options H and G are out). So the
+  path is input lockstep (L) on a shared network input layer at
+  `host_cabinet_input()`; the Mac build is only a development stand-in peer.
+- Consequence: determinism work is required. Quest <-> Quest runs the same
+  binary (same libm, rand) - the easier pairing; for Mac <-> Quest testing ship
+  our own libm / rand so both compute alike. Input delay target: 1-2 frames on
+  good Wi-Fi, adaptive, same for both players.
