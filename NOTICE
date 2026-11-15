@@ -48,6 +48,14 @@ repository):
 quest/gradlew and quest/gradle/wrapper/ - the Gradle wrapper, Apache
 License 2.0, Copyright Gradle, Inc.
 
+In the lindberghrecomp submodule, third_party/fdlibm/ (the deterministic
+maths used by netplay, taken from SDL 2.32.10's src/libm, altered):
+  fdlibm - Copyright (C) 1993 by Sun Microsystems, Inc. All rights reserved.
+    Developed at SunPro, a Sun Microsystems, Inc. business. Permission to
+    use, copy, modify, and distribute this software is freely granted,
+    provided that this notice is preserved.
+  SDL's changes to it - zlib licence, Copyright (C) 1997-2025 Sam Lantinga.
+
 Art
 ---
 The launcher icon (quest/vt3/src/main/res) and the Quest start-up screen

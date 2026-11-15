@@ -168,6 +168,28 @@ halves the rate). If any T-run fails, `adb install -r` a build of the
 committed submodule (or keep the `fade8ac` APK) before handing back.
 
 **Checkpoint log (build worker, newest first):**
+- **2026-11-15 ~16:45 netplay COMMITTED (not pushed): runtime 51830cc + 082da99, pinned here and in the
+  old tree (70459dc).** Default flow unchanged (headless prize: same loop sequence as the baseline binary;
+  frame numbers vary run to run). Unit tests green (90). Determinism (`/tmp/vt3np/det3.sh`, scene versus,
+  150 s): replay vs replay `[shash]` identical 145/145 hashes (frames 60-8700); recording run vs replay
+  parts at frame 420 (identical to 360) - next to trace (suspect: the REC run alone vs the replays in
+  parallel, i.e. something still timing-dependent, or the recorded input differing from what was fed).
+  Memory hash: loader thread 2 outgrows its 352 MB heap -> shared overflow -> pointer noise (excluded).
+  Next: trace the 420 split, run `scripts/vt3-netplay-test.sh`, apply the Strikers lessons (per-frame MT
+  reseed / visual RNG split, camera-logic audit), docs table.
+- **2026-11-15 netplay stages 0+1 (macOS only) - IN PROGRESS.** Runtime work in
+  `lindbergh-recomp-ports/lindberghrecomp` (branch vt3-quest). Baseline binary copy
+  `/tmp/vt3np/vt3.baseline`, baseline prize flow log `/tmp/vt3np/base_prize/vt3.log`.
+  Safety diffs: `ai_docs/wip/2026-11-15-netplay-*.diff`.
+  - ~14:30 written (uncommitted, builds): runtime `netplay.c/.h` (input layer cab_switch_read/
+    cab_input/cab_buttons, REC/PLAY, state hash + `[shash]` VT3 semantic hash, dump), `lockstep.c/.h`
+    (protocol, unit-tested: tests/test_netplay.py + netplay_selftest.c), `det_math.c` + vendored fdlibm
+    (third_party/fdlibm, from SDL 2.32.10's src/libm), per-thread game heaps in det mode
+    (guest_mem.c), VT3 det clock by caller + 1 pool worker (hle_sega.c), host_sdl LINDBERGH_KEYS2 /
+    LINDBERGH_BOT, -ffp-contract=off (CMake option), version header. Outer: vt3-repro.sh `versus`
+    scene (works: 2P coin chute 2 + Start at 2300/2360, VS select, 1P-vs-2P match from ~2883),
+    scripts/vt3-netplay-test.sh (not yet run). Determinism: replays had identical flow logs; memory
+    hash noise traced to CRI middleware, host mutex pointers, heap layout (fixed by per-thread heaps).
 - **2026-11-13 ~12:00 Classic flicker round 3 - still NOT fixed; runtime 7d4d920
   (test switch only, default behaviour = defb69a) installed, pinned in both trees.**
   4 headset runs this task (QA/QB earlier, QC logs, QD mitigation); before each the

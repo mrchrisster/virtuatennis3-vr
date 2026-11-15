@@ -60,6 +60,14 @@ static const LgGameProfile k_profile = {
     .no_test_buttons = 1,           /* Test ends the game (main returns 9), Service does nothing: no panel rows, no keys (owner, 2026-11-13) */
     .glx_sgix_pbuffer = 1,
     .sysdata_region = 1,            /* the language: the region byte of the EEPROM's system data (Language row, hle_sega.c) */
+    /* netplay's state hash (netplay.h): the image's .data/.bss less what is
+     * not the match - CRI's sound and movie middleware (its data and the end
+     * of .bss), the frame timing statistics, the JVS board's packet buffers
+     * and the renderer's packet lists and loaders (heap pointers that differ
+     * with the loading threads' timing) */
+    .state_hash = "840d000-8922bd4,!8464ee0-8465a00,!88d66c0-8922bd4,!88b9cf0-88b9d00,!88bc080-88bc0c0,"
+                  "!8534070-8534090,!88c02c0-88c3730,!850f240-8533900,!850ce20-850dc00,!850de24-850de28,!850dee4-850dee8,"
+                  "!850c8b4-850c8b8,!850cc80-850cd00",
     .vr = {
         .title = "Virtua Tennis 3 VR",
         .width = 1360, .height = 768,

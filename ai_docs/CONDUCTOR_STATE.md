@@ -520,3 +520,10 @@ env.txt 0 B, app stopped, save off in every run. Not pushed. Owner to judge worn
   binary (same libm, rand) - the easier pairing; for Mac <-> Quest testing ship
   our own libm / rand so both compute alike. Input delay target: 1-2 frames on
   good Wi-Fi, adaptive, same for both players.
+
+## 2026-11-15 netplay stages 0-1 (build worker, macOS only)
+Runtime 51830cc (protocol core) + 082da99 (input layer, REC/PLAY, hashes, deterministic mode, UDP lockstep)
+committed in the old tree's submodule, pinned in both trees (old 70459dc). Not pushed. `docs/NETPLAY.md`.
+2P versus scripted on the Mac works (scene `versus`). Two replays of one recording: match hash identical
+for all 8700 frames; recording run vs replay parts at ~400 (open). Scenario test (`vt3-netplay-test.sh`)
+still to run. Default flow unchanged (prize: same loop sequence).

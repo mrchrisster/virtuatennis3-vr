@@ -19,6 +19,11 @@
 #   lose          the mirror of prize: 1P loses every point from 0-40, so the
 #                 match is lost in two points - continue screen, game over,
 #                 ranking / name entry. Frames every 60
+#   versus        two players: 1P starts a match, 2P puts a coin in chute 2
+#                 and presses Start during it ("here comes a new challenger"),
+#                 both pick a player, a 1P-vs-2P match is played by two bots
+#                 (LINDBERGH_KEYS2 drives player 2, LINDBERGH_BOT both from
+#                 frame 2900). Frames every 120
 #
 # The menus are driven by script (coin, start, Z through the selects, Enter
 # on court select); the jump itself is LINDBERGH_VT3_ROUND / _POINTS /
@@ -44,7 +49,7 @@ set -euo pipefail
 
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 die() { printf 'error: %s\n' "$*" >&2; exit 1; }
-usage() { sed -n '2,41p' "$0" | sed 's/^# \{0,1\}//'; exit 2; }
+usage() { sed -n '2,46p' "$0" | sed 's/^# \{0,1\}//'; exit 2; }
 
 SCENE="${1:-}"; WHERE="${2:-}"
 [ -n "$SCENE" ] && [ -n "$WHERE" ] || usage
@@ -62,11 +67,14 @@ LINDBERGH_VT3_POINTS=3,0"; SHOT_FROM=1900 SHOT_EVERY=20 ;;
     lose)        JUMP="LINDBERGH_VT3_LOSE=1
 LINDBERGH_VT3_POINTS=0,3"; SHOT_FROM=1900 SHOT_EVERY=60 ;;
     splitreplay) JUMP="LINDBERGH_VT3_SPLIT=1"; SHOT_FROM=2400 SHOT_EVERY=20 ;;
-    *)           die "unknown scene '$SCENE' (tournament3, round<N>, forty, replay, splitreplay, prize, lose)" ;;
+    versus)      k2="2300:6,2360:2*20"; for f in $(seq 2500 60 2740); do k2="$k2,$f:z"; done
+                 JUMP="LINDBERGH_KEYS2=${LINDBERGH_KEYS2-$k2}
+LINDBERGH_BOT=${LINDBERGH_BOT-2900,3}"; SHOT_FROM=2200 SHOT_EVERY=120 ;;
+    *)           die "unknown scene '$SCENE' (tournament3, round<N>, forty, replay, splitreplay, prize, lose, versus)" ;;
 esac
 JUMP="$JUMP
 LINDBERGH_VT3_LOG=1
-LINDBERGH_AUTOSTART=1"
+LINDBERGH_AUTOSTART=${LINDBERGH_AUTOSTART-1}"
 # The player's saved settings (vr.cfg: Classic/Immersive, replays, overlays,
 # point cutaways) must not change a test run: pinned to Classic with
 # everything shown unless the caller sets them (set one to empty, e.g.
@@ -90,7 +98,7 @@ keys() {
 }
 
 # LINDBERGH_* already in our environment, as NAME=value lines
-passthrough() { env | grep '^LINDBERGH_' | grep -v '^LINDBERGH_KEYS=' |
+passthrough() { env | grep '^LINDBERGH_' | grep -Ev '^LINDBERGH_(KEYS|KEYS2|BOT)=' |
                 grep -Ev '^LINDBERGH_(VT3_IMMERSIVE|REPLAYS|VT3_CUTAWAYS|ARCADE_OVERLAYS|VT3_SAVE)=' || true; }
 
 mkdir -p "$OUT"
@@ -101,7 +109,7 @@ mac)
     while IFS= read -r l; do [ -n "$l" ] && export "$l"; done <<<"$JUMP"
     for v in LINDBERGH_VT3_IMMERSIVE LINDBERGH_REPLAYS LINDBERGH_VT3_CUTAWAYS LINDBERGH_ARCADE_OVERLAYS LINDBERGH_VT3_SAVE; do
         [ -n "${!v}" ] || unset "$v"; done      # empty: left to vr.cfg (the desktop reads env only)
-    export LINDBERGH_KEYS="$(keys mac)"
+    export LINDBERGH_KEYS="${VT3_KEYS-$(keys mac)}"     # VT3_KEYS= (set, even empty) replaces the menu script
     # never on screen, never taking focus or the speakers (LINDBERGH_HEADLESS=0 to watch)
     export LINDBERGH_HEADLESS="${LINDBERGH_HEADLESS-1}"
     export LINDBERGH_SHOT="${LINDBERGH_SHOT:-$OUT/f}" LINDBERGH_SHOT_EVERY="${LINDBERGH_SHOT_EVERY:-$SHOT_EVERY}" LINDBERGH_SHOT_FROM="${LINDBERGH_SHOT_FROM:-$SHOT_FROM}"

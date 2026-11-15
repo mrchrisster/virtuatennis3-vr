@@ -578,3 +578,21 @@ screen's distance, sized by the flat lens (1.732 / Screen size scale).
 2. Separate projection and view from VT3's MVP; get the court drawn in stereo with depth in the existing pipeline, fixed game camera.
 3. Menu entries for flat / immersive / table-top and scale.
 4. Head-tracked camera offset; then chosen cameras.
+
+## 9. Netplay: two copies in lockstep (2026-11-15, macOS only)
+
+Two players on two machines, each running the whole game; only cabinet
+input crosses the network (deterministic input lockstep at the JVS read).
+Everything - switches, protocol, deterministic mode, what can differ between
+a Mac and a Quest, the next stage - is in `docs/NETPLAY.md`. In short:
+
+- `scripts/vt3-repro.sh versus mac <disk0>`: two players on one machine,
+  scripted (`LINDBERGH_KEYS2` player 2: a coin in chute 2 and Start during
+  1P's match; `LINDBERGH_BOT` both from frame 2900).
+- `LINDBERGH_INPUT_REC=<file>` / `LINDBERGH_INPUT_PLAY=<file>`,
+  `LINDBERGH_STATE_HASH=60`, `tools/state_hash_diff.py [--semantic]`.
+- `LINDBERGH_NETPLAY=host` / `join:<ip>`, `LINDBERGH_NETSIM=...`,
+  `scripts/vt3-netplay-test.sh <disk0>`.
+- VT3's own determinism fixes are in `hle_sega.c` (the clock by caller, one
+  job-pool worker, the settings report, the semantic hash); VT3's hash regions
+  in `games/vt3/src/host.c` (`.state_hash`).
