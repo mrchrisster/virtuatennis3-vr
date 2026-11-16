@@ -7,13 +7,13 @@ fix works live in `VT3_PORTING_GUIDE.md` section 8.
 ## In progress
 
 - [ ] **Versus between two players on two machines (netplay)** - stages 0-1
-      on macOS (2026-11-15): two-player versus scripted on one Mac (`versus`
-      scene), input recording/replay, state hashes, deterministic mode, UDP
-      lockstep with a network simulator. Two Mac copies stay in sync in
-      every scenario (clean, jitter, 60 ms, loss, reorder, stall, killed
-      peer; a mismatch is refused). Open: a boot transient after Start
-      (suspected sound-gated). Next: a Quest joins a Mac
-      (`docs/NETPLAY.md`, "Next stage").
+      on macOS (2026-11-15); 2026-11-16 a Quest plays a Mac over home Wi-Fi
+      (env.txt host/join): unattended 11,640 frames in sync, then worn by
+      the owner ("felt great"). Fixed on the way: voices and CRI's server on
+      game frames (the boot transient; the Quest's late warning screen).
+      Next: a Versus page in the headset panel, settings locked in a
+      session, waits under jitter, the far-end view, two Quests
+      (`docs/NETPLAY.md`).
 
 - [ ] **Switch Classic / Immersive without a restart** - groundwork in
       (2026-11-11), not switched on: the mode now has a target / game /

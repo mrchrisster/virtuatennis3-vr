@@ -1,10 +1,15 @@
 # Netplay: two copies of the game in lockstep
 
-Status (2026-11-15): **stages 0 and 1 done, macOS only.** Two headless Mac
-processes play Virtua Tennis 3 versus against each other over UDP on
-localhost, in sync in every scenario tested (clean, jitter, 60 ms, loss,
-reordering, a stall, a killed peer; a mismatch is refused by name). Nothing of this runs on the Quest yet (no INTERNET permission, no
-panel); see "Next stage" at the end. The plan behind it:
+Status (2026-11-16): **a Quest plays a Mac over home Wi-Fi.** Stages 0-1 on
+macOS (2026-11-15) and, on 2026-11-16, the Quest: the APK has the INTERNET
+permission; a session is started from `env.txt` (`LINDBERGH_NETPLAY=host` on
+the Quest, `join:<quest ip>` on the Mac). Measured: unattended Quest host vs
+Mac joiner (bots both sides), 11,640 frames in lockstep, every match hash
+equal, a full 1P-vs-2P match, RTT 8.8 ms, delay 1, 3% of frames waited; then
+the owner played worn against the Mac bot (Classic): 15,600+ frames, 260
+hashes compared, no desync, "felt great". A Mac recording replayed on the
+Quest gives the Mac's match hash for the whole match. No headset panel yet
+(env.txt only); see "Next stage" at the end. The plan behind it:
 `ai_docs/research/local-multiplayer-netplay.md` (Part B),
 `ai_docs/research/versus-two-quests.md`, `ai_docs/research/netplay-example-strikers.md`.
 
@@ -39,6 +44,13 @@ layer passes the host's own input straight through).
 | `LINDBERGH_DETERMINISTIC=1` | the determinism fixes alone (implied by REC, PLAY and NETPLAY; `=0` turns them off to measure them) |
 | `LINDBERGH_DET_LIBM=0` | deterministic mode without the bundled maths |
 | `LINDBERGH_TICK_LOG=1` | input-frame vs display-frame log |
+| `LINDBERGH_DET_AUDIO=0` | deterministic mode with the sound card's clock for the voices (to measure the fix) |
+| `LINDBERGH_DET_CRI=0` | deterministic mode with CRI's wall-clock vsync (to measure the fix) |
+| `LINDBERGH_SEGA_READS=<from>-<to>` | log the game's SEGAAPI status / position reads in that input-frame range, with callers |
+| `LINDBERGH_SLOW_IO=<ms>[,<from frame>]` | every guest open/read takes that much longer (a slow disk on the Mac) |
+| `LINDBERGH_DET_HITCH=<frame>,<ms>` | the main thread sleeps once at that game frame (a slow frame) |
+| `LINDBERGH_DET_FRAMELOG=<n>` / `LINDBERGH_DET_MTLOG=<from>-<to>` | game frame vs input frame every n; each match-MT draw with caller and thread |
+| `LINDBERGH_THREAD_LOG=1` | each guest thread's start routine and host thread id (`[open]` lines carry frame and thread with `LINDBERGH_OPENS=1`) |
 | `LINDBERGH_KEYS2="frame:key[*n],..."` | scripted player 2: `z x c` buttons, `^ _ < >` lever, `2` Start, `6` / `5` a coin in chute 2 / 1 |
 | `LINDBERGH_BOT=<from>[,<1\|2\|3>]` | a lever-and-swing bot for player 1, 2 or both from that frame |
 
@@ -152,6 +164,8 @@ Implied by REC, PLAY and NETPLAY; off by default so normal play is unchanged.
 | Loads finish when the disk is done: a faster machine saw a load complete frames earlier, and the draws that follow moved (MT index 259 vs 267 at frame 1680, equal again at 1740) | `netplay_frame_barrier`: each input frame first waits until VT3's `candy::ThreadPool`s are idle (waitDone's own test: +0x44 queued, +0x4c running) and assam's decoder count is 0 (3 s cap) - every disk infinitely fast |
 | One global MT for the match and for presentation: the effects system (`_abm*`, `_abk*`, `Kf*` particles), the crowd (`CAudience2DManager`), voices (`sound::*`), the racket sound and the shader noise draw from it depending on what is shown and heard (seen: MT index 346 vs 349 three frames after a point at 60 ms; the next camera pick differed) | those 222 call sites (57 functions, by return address, `hle_sega.c k_vt3_fx_rand_from`) get a stream of their own (splitmix64); the match's callers keep the game's MT |
 | After a stall the two 60 Hz frame grids stay a frame apart: one side then waits ~15 ms every frame | a frame that waited restarts the frame pacer's grid from that moment (`host_sdl.c pace`, `netplay_take_stalled`) |
+| The voices on the sound card's clock: `vs::isVs_stop` (has the announcer's line ended?) gates the attract's flow; the answer changed a frame apart between runs (voice stop at input frame 615 vs 616, state split at 385; netplay clean desynced at frame 420 with `LINDBERGH_DET_AUDIO=0`) | the SEGAAPI mixer advances by input frames: each frame mixes 800 output frames (48000 / 60) into a FIFO from the input layer, the card's callback only plays the FIFO (a stall is silence) - `hle_segaapi.c` |
+| CRI's middleware server on its own 60 Hz wall-clock "vsync" (`lxsync_thrd_proc` usleep 16666 -> `adxm_vsync_proc` -> `SVM_ExecSvrVsync`), blocking reads on the CRIDLG delegate thread: the text databases `assam::FileManager` loads for the boot's warning screen finished vsyncs later on a slower disk, and the screen ended 30-120 frames later on the Quest (reproduced on the Mac with `LINDBERGH_SLOW_IO=2,350`) | `lxsync_wait_cond` wakes `adxm_vsync_proc` once per input frame and the load barrier waits for its pass (3 s cap); `CRIDLG_TryBeginInvoke` runs the delegate in its caller (`hle_sega.c`) |
 | The hash itself: host pointers in guest mutexes | the 12 bytes after hle_pthread's "LGJ1" magic are skipped |
 
 ## Lessons from Quest 3 Strikers (ideas only; that project is GPL-3.0)
@@ -237,18 +251,18 @@ the network thread's 5 ms poll, and the delay does not yet rise on waits).
 | replay vs replay | **identical, all frames 60-8760** | differs (pointer noise, below) | one loop change one display frame apart |
 | recording run vs replay | identical except frame 420 (the same from 480 on) | differs | the same |
 
-The one known divergence left, measured with a hash every frame on two
-recording runs (inputs identical to frame 1104): after 1P's Start in the
-attract, a batch of 9 + 9 global-MT draws comes at frame 391 in one run and
-440 in the other, and the two are the same again from 487. Not inputs, not
-the loaders (the barrier waits for them): a step gated on something on the
-wall clock - suspected the sound library (ADX / SEGAAPI play on the real
-audio clock; a voice that must finish before the next screen). In netplay it
-did not strike (hash frames are 30 apart and both copies boot under the same
-load), but it would end a session if it hit a hash frame. Next: log the
-SEGAAPI play/stop and ADX status calls around those frames; if confirmed,
-answer the game's "is it still playing" from a frame clock in deterministic
-mode.
+The boot transient after 1P's Start (MT draws at frame 391 in one run, 440 in
+another) was the voices on the sound card's clock - fixed (table above).
+
+**Mac <-> Quest (2026-11-16, runtime a825500):** a Mac recording of the
+`versus` scene (150 s, 8760 frames) replayed on the Quest
+(`LINDBERGH_INPUT_PLAY`, the same NVRAM pushed with it): before the CRI fix,
+140 of 143 match hashes equal - only frames 480-600, the boot warning screen
+ending later; the whole match identical. With the fix a Mac replay with a
+slowed disk (`LINDBERGH_SLOW_IO=1,200`) is identical to the recording over
+all 8700 frames. The scenario table again (two Mac copies): all 9 complete,
+no desync, hashes equal; under jitter, loss and stall one side still waits
+most frames (below, "Open").
 
 The memory hash (`.data/.bss` less VT3's noise list) still differs between
 any two runs: the loading thread outgrows its 352 MB heap
@@ -258,7 +272,7 @@ animation databases. Netplay therefore compares the match hash by default.
 
 ## Next stage: a Quest joins a Mac
 
-What it needs, in order:
+Done (2026-11-16): 1 (INTERNET; no multicast yet), 2 by env.txt (no panel page yet), 3, 4, 5. Left: the panel page, 6, 7, 8, and the waits below. What it needed, in order:
 
 1. **Android manifest:** `<uses-permission android:name="android.permission.INTERNET"/>`
    (and later `CHANGE_WIFI_MULTICAST_STATE` + a `WifiManager.MulticastLock`
@@ -291,3 +305,17 @@ What it needs, in order:
    approach) or room codes over a WebSocket relay (Quest 3 Strikers uses a
    Cloudflare Worker); a "fake friend" CPU peer for one-headset smoke tests
    (the Mac bot covers it now).
+
+## Open (2026-11-16)
+
+- **Waits under impairment:** with jitter, loss or a stall one copy often
+  waits part of most frames (table: j20 6199 waits in 110 s); never a desync,
+  but each wait is a frame that rides on the network. The pacer re-base after
+  a wait (61e0a49) does not always settle the two frame grids. Next: raise the
+  delay on repeated waits, and a median-of-pings starting delay.
+- **Splash:** a button pressed once the game runs takes the headset's
+  start-up splash down (36c76fc); it was only taken down by the picture's
+  brightness, and a quick Start could keep it over a dark screen.
+- **Session from the headset:** a Versus page (Host / Join by IP, status,
+  Leave) instead of env.txt; the simulation settings (mode, replays,
+  cutaways, overlays) locked while a session runs.
