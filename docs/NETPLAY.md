@@ -1,8 +1,9 @@
 # Netplay: two copies of the game in lockstep
 
-Status (2026-11-15): **stages 0 and 1, macOS only.** Two headless Mac
+Status (2026-11-15): **stages 0 and 1 done, macOS only.** Two headless Mac
 processes play Virtua Tennis 3 versus against each other over UDP on
-localhost. Nothing of this runs on the Quest yet (no INTERNET permission, no
+localhost, in sync in every scenario tested (clean, jitter, 60 ms, loss,
+reordering, a stall, a killed peer; a mismatch is refused by name). Nothing of this runs on the Quest yet (no INTERNET permission, no
 panel); see "Next stage" at the end. The plan behind it:
 `ai_docs/research/local-multiplayer-netplay.md` (Part B),
 `ai_docs/research/versus-two-quests.md`, `ai_docs/research/netplay-example-strikers.md`.
@@ -148,7 +149,33 @@ Implied by REC, PLAY and NETPLAY; off by default so normal play is unchanged.
 | FMA contraction (`a*b+c`) | `-ffp-contract=off` for the whole target - lifted code, runtime, fdlibm (CMake `LINDBERGH_FP_CONTRACT_OFF`, ON) |
 | Heap layout: the runtime allocating in the game's heap; loader threads allocating at the same time as the main thread | the game's malloc gets its own heaps, one per thread (main 256 MB, the first four threads the game makes 352 MB each, the next eleven 8 MB, the rest 168 MB), zero-filled; the runtime's allocations above 0x98000000 (`guest_mem.c`) |
 | A job pool hands jobs to whichever worker is free | VT3's `_sSystem::nWorkerThreads` 3 -> 1 |
+| Loads finish when the disk is done: a faster machine saw a load complete frames earlier, and the draws that follow moved (MT index 259 vs 267 at frame 1680, equal again at 1740) | `netplay_frame_barrier`: each input frame first waits until VT3's `candy::ThreadPool`s are idle (waitDone's own test: +0x44 queued, +0x4c running) and assam's decoder count is 0 (3 s cap) - every disk infinitely fast |
+| One global MT for the match and for presentation: the effects system (`_abm*`, `_abk*`, `Kf*` particles), the crowd (`CAudience2DManager`), voices (`sound::*`), the racket sound and the shader noise draw from it depending on what is shown and heard (seen: MT index 346 vs 349 three frames after a point at 60 ms; the next camera pick differed) | those 222 call sites (57 functions, by return address, `hle_sega.c k_vt3_fx_rand_from`) get a stream of their own (splitmix64); the match's callers keep the game's MT |
+| After a stall the two 60 Hz frame grids stay a frame apart: one side then waits ~15 ms every frame | a frame that waited restarts the frame pacer's grid from that moment (`host_sdl.c pace`, `netplay_take_stalled`) |
 | The hash itself: host pointers in guest mutexes | the 12 bytes after hle_pthread's "LGJ1" magic are skipped |
+
+## Lessons from Quest 3 Strikers (ideas only; that project is GPL-3.0)
+
+`ai_docs/research/netplay-example-strikers.md`. Taken over: a separate random
+stream for presentation (done, above); every time read on a virtual 60 Hz
+clock (done for the clock reads that feed VT3's state); a small semantic hash
+that names what diverged (`[shash]`: ball, players, score, MT); neutral input
+for the first D frames; the version in every packet (the protocol byte and
+the session nonce; the full check at the handshake); a long wait allowed at
+load (our load barrier makes loads take no frames instead).
+Still to do:
+- **Reseed the match's MT every frame** from (match seed, frame) so one stray
+  draw cannot carry on (Strikers does this). VT3's MT is drawn on the
+  framework thread; the reseed has to happen there, at the frame start (e.g.
+  a wrap of `tennis::procMain`), not from the JVS thread.
+- **Camera-dependent game logic audit** (each VR player gets his own view in
+  stage 5): `_sCamera::isVisible` / `TScene::Frustum::intersect` results that
+  feed logic, culling-dependent animation, the camera routine on the job-pool
+  worker (now the only worker in deterministic mode). The presentation
+  callers above are already off the match's stream.
+- **Delay from the median of pings** at the start (Strikers: median of 9,
+  fixed for the match). Ours adapts from a smoothed RTT; a median-of-pings
+  start value would avoid the first seconds' stalls on Wi-Fi.
 
 ## What else can differ between Apple clang (arm64, x86_64) and the NDK (arm64)
 
@@ -176,30 +203,58 @@ Implied by REC, PLAY and NETPLAY; off by default so normal play is unchanged.
 - **`long double`, `__builtin` math:** not used by the runtime's guest paths.
 - **qsort:** the HLE's own insertion sort, not the host's (stable, the same everywhere).
 
-## Measured (macOS, 2026-11-15)
+## Measured (macOS, 2026-11-15, runtime 61e0a49)
 
-Scene `versus`, a 150 s run (8700 input frames: boot, 1P's match, 2P's
-challenge at frame 2300, the VS select, 1P-vs-2P to the second game), hash
-every 60 frames. Recordings and logs under `/tmp/vt3np` (not kept).
+**Netplay scenario table** (`scripts/vt3-netplay-test.sh`, two headless copies
+on one Mac over localhost UDP, scene `versus` with a bot on each side, 110 s =
+6240 input frames each: boot, 1P's match, 2P's challenge, the VS select and
+the 1P-vs-2P match; two scenarios at a time; match hash compared every 60
+frames):
 
-| Comparison | Match hash `[shash]` (ball, players, score, MT) | Memory hash `[hash]` | Flow log |
+| Scenario | Completed | Delay | Waits (host) | Desync | Match hashes host = joiner |
+|---|---|---|---|---|---|
+| clean | yes | 1 (2 -> 1 at frame 244) | 11 waits, 80 ms in 110 s | none | yes (103) |
+| 20 ms / 5 ms jitter | yes | 2 | 930, 14.6 s * | none | yes |
+| 60 ms | yes | 4 | 2194, 34.5 s * | none | yes |
+| 2% loss | yes | 1 | 2826, 32.6 s * | none | yes |
+| 10% loss | yes | 1 | 963, 10.9 s * | none | yes |
+| 20% reordered | yes | 2 | 70, 0.1 s | none | yes |
+| 350 ms stall | yes | 1 | longest 352 ms | none | yes |
+| peer killed at 70 s | yes: `nothing from the other player for 5001 ms - session ended, playing on alone` | 1 | - | none | - |
+| version mismatch (joiner Replays off) | yes: refused, `settings differ: vt3.replays=1 here, 0 there` on both | - | - | - | - |
+
+\* run before the pacer fix (61e0a49): one side kept waiting part of every
+frame, the two 60 Hz grids a frame apart - no slowdown (both reach frame 6240
+in 110 s) but every frame's input then rides on the network's jitter. With the
+fix, clean went from 4305 to 11 waits; the stall scenario still settles with
+one side waiting most frames (open: the simulator's send queue is flushed on
+the network thread's 5 ms poll, and the delay does not yet rise on waits).
+
+**Replay** (scene `versus`, 150 s = 8760 frames, record once, replay twice):
+
+| Pair | Match hash `[shash]` (146 hashes) | Memory hash `[hash]` | Flow log |
 |---|---|---|---|
-| replay 1 vs replay 2 | **identical, all 145 (frames 60-8700)** | differs from frame 60 | one loop change 1 display frame apart (7742/7743): display frames, not input frames |
-| recording run vs its replay | identical to frame 360, differs from 420 | differs from frame 60 | the same, one change 1 frame apart (5296/5297) |
+| replay vs replay | **identical, all frames 60-8760** | differs (pointer noise, below) | one loop change one display frame apart |
+| recording run vs replay | identical except frame 420 (the same from 480 on) | differs | the same |
 
-What the memory hash still sees (`state_dump_diff.py`): heap pointers of
-the uva animation database and the scene database list - the loading thread
-(thread 2) outgrows its 352 MB heap and its overflow goes to the shared one,
-whose order is not fixed. They are excluded from VT3's regions now; what is
-left differing is being traced (HANDOFF 3.1).
+The one known divergence left, measured with a hash every frame on two
+recording runs (inputs identical to frame 1104): after 1P's Start in the
+attract, a batch of 9 + 9 global-MT draws comes at frame 391 in one run and
+440 in the other, and the two are the same again from 487. Not inputs, not
+the loaders (the barrier waits for them): a step gated on something on the
+wall clock - suspected the sound library (ADX / SEGAAPI play on the real
+audio clock; a voice that must finish before the next screen). In netplay it
+did not strike (hash frames are 30 apart and both copies boot under the same
+load), but it would end a session if it hit a hash frame. Next: log the
+SEGAAPI play/stop and ADX status calls around those frames; if confirmed,
+answer the game's "is it still playing" from a frame clock in deterministic
+mode.
 
-**Unfinished (2026-11-15):** why the recording run parts from its replays at
-frame ~400 (the replays agree); the memory hash's last pointers; the
-two-process scenario table (`vt3-netplay-test.sh`) has not been run yet.
-The Strikers study's lessons still to apply: the global MT reseeded per frame
-from (match seed, frame) and a separate stream for the visual callers
-(particles, crowd, voices); an audit of logic that reads the camera
-(culling, the camera worker) - each VR player has its own view.
+The memory hash (`.data/.bss` less VT3's noise list) still differs between
+any two runs: the loading thread outgrows its 352 MB heap
+(`[mem] deterministic: thread heap 2 is full`) and its overflow goes to the
+shared heap, whose order is not fixed - heap pointers in the scene and
+animation databases. Netplay therefore compares the match hash by default.
 
 ## Next stage: a Quest joins a Mac
 

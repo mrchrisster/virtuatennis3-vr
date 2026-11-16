@@ -527,3 +527,10 @@ committed in the old tree's submodule, pinned in both trees (old 70459dc). Not p
 2P versus scripted on the Mac works (scene `versus`). Two replays of one recording: match hash identical
 for all 8700 frames; recording run vs replay parts at ~400 (open). Scenario test (`vt3-netplay-test.sh`)
 still to run. Default flow unchanged (prize: same loop sequence).
+
+## 2026-11-15 ~19:30 netplay stages 0-1 done on macOS (build worker)
+Runtime 61e0a49 (load barrier f337999, VT3 presentation RNG stream + pacer 61e0a49) pinned in both trees
+(old fcdbb3b). Not pushed. Two Mac copies over localhost: all 9 scenarios pass (clean, 20/5 ms, 60 ms, 2%/10%
+loss, reorder, 350 ms stall, killed peer -> host plays on, mismatch refused by name), no desync, delay 1 on
+localhost. Replays: identical match hash over 8760 frames; one boot transient (frames 391-487) between
+recording runs, suspected sound-gated - open. Next: Quest joins a Mac (docs/NETPLAY.md).

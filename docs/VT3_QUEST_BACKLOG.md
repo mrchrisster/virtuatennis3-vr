@@ -9,10 +9,11 @@ fix works live in `VT3_PORTING_GUIDE.md` section 8.
 - [ ] **Versus between two players on two machines (netplay)** - stages 0-1
       on macOS (2026-11-15): two-player versus scripted on one Mac (`versus`
       scene), input recording/replay, state hashes, deterministic mode, UDP
-      lockstep with a network simulator. Two replays of one recorded match
-      agree on the match hash for all 8700 frames; the recording run parts
-      at ~400; the two-process scenario table not run yet. Next: a Quest
-      joins a Mac (`docs/NETPLAY.md`, "Next stage").
+      lockstep with a network simulator. Two Mac copies stay in sync in
+      every scenario (clean, jitter, 60 ms, loss, reorder, stall, killed
+      peer; a mismatch is refused). Open: a boot transient after Start
+      (suspected sound-gated). Next: a Quest joins a Mac
+      (`docs/NETPLAY.md`, "Next stage").
 
 - [ ] **Switch Classic / Immersive without a restart** - groundwork in
       (2026-11-11), not switched on: the mode now has a target / game /

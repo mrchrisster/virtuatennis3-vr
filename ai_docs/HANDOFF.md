@@ -168,6 +168,17 @@ halves the rate). If any T-run fails, `adb install -r` a build of the
 committed submodule (or keep the `fade8ac` APK) before handing back.
 
 **Checkpoint log (build worker, newest first):**
+- **2026-11-15 ~19:30 netplay stages 0+1 DONE on macOS; runtime 61e0a49 pinned here and in the old tree
+  (fcdbb3b). Not pushed.** Added since 082da99: f337999 load barrier (each input frame waits for VT3's
+  loading threads), 61e0a49 a random stream of its own for VT3's presentation draws (222 call sites) and the
+  pacer re-based after a wait. `scripts/vt3-netplay-test.sh` (run from the build workspace): all 9 scenarios
+  pass, no desync, match hashes host = joiner (table in docs/NETPLAY.md). Replay: replay vs replay `[shash]`
+  identical over 8760 frames; recording vs replay differs only at frame 420 - a boot transient after 1P's
+  Start (MT draws at frame 391 in one run, 440 in another, equal from 487): suspected sound-gated (ADX/
+  SEGAAPI real-time clock) - next to trace. Default play: prize loop sequence identical to the baseline
+  binary's (frame numbers vary run to run with the baseline binary too). Open: that transient; the memory
+  hash's heap-pointer noise (thread 2 overflow); waits after a stall; per-frame MT reseed; camera-logic
+  audit. Next stage: a Quest joins a Mac (docs/NETPLAY.md "Next stage").
 - **2026-11-15 ~16:45 netplay COMMITTED (not pushed): runtime 51830cc + 082da99, pinned here and in the
   old tree (70459dc).** Default flow unchanged (headless prize: same loop sequence as the baseline binary;
   frame numbers vary run to run). Unit tests green (90). Determinism (`/tmp/vt3np/det3.sh`, scene versus,
