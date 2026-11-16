@@ -7,7 +7,11 @@ the Quest, `join:<quest ip>` on the Mac). Measured: unattended Quest host vs
 Mac joiner (bots both sides), 11,640 frames in lockstep, every match hash
 equal, a full 1P-vs-2P match, RTT 8.8 ms, delay 1, 3% of frames waited; then
 the owner played worn against the Mac bot (Classic): 15,600+ frames, 260
-hashes compared, no desync, "felt great". A Mac recording replayed on the
+hashes compared, no desync, "felt great"; then in **Immersive** (VR, the
+owner's head moving the camera, the Mac with a fixed head): 25,200+ frames,
+420 hashes compared, no desync, "seems to work well" - the camera does not
+feed the match. The Mac's player 2 joins with `LINDBERGH_KEYS2_JOIN=1` (one
+coin when a 1P match point starts, again only after a match has ended). A Mac recording replayed on the
 Quest gives the Mac's match hash for the whole match. No headset panel yet
 (env.txt only); see "Next stage" at the end. The plan behind it:
 `ai_docs/research/local-multiplayer-netplay.md` (Part B),
@@ -52,6 +56,7 @@ layer passes the host's own input straight through).
 | `LINDBERGH_DET_FRAMELOG=<n>` / `LINDBERGH_DET_MTLOG=<from>-<to>` | game frame vs input frame every n; each match-MT draw with caller and thread |
 | `LINDBERGH_THREAD_LOG=1` | each guest thread's start routine and host thread id (`[open]` lines carry frame and thread with `LINDBERGH_OPENS=1`) |
 | `LINDBERGH_KEYS2="frame:key[*n],..."` | scripted player 2: `z x c` buttons, `^ _ < >` lever, `2` Start, `6` / `5` a coin in chute 2 / 1 |
+| `LINDBERGH_KEYS2_JOIN=1` | scripted player 2 joins (coin in chute 2, Start, shot taps through the select) once when a 1P match point starts, again only after a match ended |
 | `LINDBERGH_BOT=<from>[,<1\|2\|3>]` | a lever-and-swing bot for player 1, 2 or both from that frame |
 
 Tools (runtime `tools/`): `state_hash_diff.py a.log b.log [--semantic]` (first
