@@ -11,6 +11,12 @@
     <uses-permission android:name="android.permission.VIBRATE" />
     <!-- versus over the local network (netplay: UDP lockstep, docs/NETPLAY.md) -->
     <uses-permission android:name="android.permission.INTERNET" />
+    <!-- versus: hosts are found by a UDP broadcast on the home network -->
+    <uses-permission android:name="android.permission.ACCESS_WIFI_STATE" />
+    <uses-permission android:name="android.permission.CHANGE_WIFI_MULTICAST_STATE" />
+    <!-- versus: voice chat with the other player (voice.c) -->
+    <uses-permission android:name="android.permission.RECORD_AUDIO" />
+    <uses-permission android:name="android.permission.MODIFY_AUDIO_SETTINGS" />
     <!-- the game's files live in /sdcard/VirtuaTennis3 (quest/install.sh) -->
     <uses-permission android:name="android.permission.MANAGE_EXTERNAL_STORAGE" />
     <uses-permission android:name="android.permission.READ_EXTERNAL_STORAGE" />

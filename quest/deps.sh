@@ -7,6 +7,8 @@
 #   gl4es/            gl4es at a fixed commit with quest/gl4es.patch applied;
 #                     lib/libGL.a is the build
 #   openal-soft/      OpenAL Soft 1.24.3 source; openal-android/ its build
+#   opus/             Opus 1.5.2 source (Versus voice chat; the game's CMake
+#                     builds it, for the Quest and the Mac alike)
 #   oxr/              the Khronos OpenXR loader for Android 1.1.49 (an .aar,
 #                     unpacked)
 #   gl-headers/       Mesa 26.2.6's GL/ and KHR/ headers, nothing else (only
@@ -44,6 +46,10 @@ if [ ! -f gl4es/lib/libGL.a ]; then
         -DCMAKE_C_FLAGS_RELEASE="-O3 -DNDEBUG -fno-stack-protector -U_FORTIFY_SOURCE" >/dev/null   # as the runtime's release build
     cmake --build gl4es-android -j"$JOBS"
 fi
+
+# Versus voice chat: Opus, built by the game's own CMake (LINDBERGH_OPUS_DIR,
+# default ../deps/opus); without it a match simply has no voice
+[ -d opus ] || git clone -q --depth 1 --branch v1.5.2 https://github.com/xiph/opus.git
 
 if [ ! -f openal-android/libopenal.so ]; then
     [ -d openal-soft ] || git clone -q --depth 1 --branch 1.24.3 https://github.com/kcat/openal-soft.git

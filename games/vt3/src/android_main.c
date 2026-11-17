@@ -202,6 +202,9 @@ int SDL_main(int argc, char **argv)
     }
     load_env("../env.txt");     /* in the game folder, beside vt3_Lindbergh */
     load_env("env.txt");
+    /* a Versus session chosen in the headset's panel (host_xr.c versus_start):
+     * this start only - a later one is single-player again */
+    if (access("../netplay.txt", R_OK) == 0) { load_env("../netplay.txt"); remove("../netplay.txt"); fprintf(stderr, "[android] versus: this start runs a netplay session\n"); }
     {   /* gl4es keeps the programs it builds here, as arbprog.c does its own */
         char cache[1024];
         snprintf(cache, sizeof cache, "%s/shadercache", base);

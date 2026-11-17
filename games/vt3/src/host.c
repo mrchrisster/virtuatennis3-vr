@@ -6,6 +6,7 @@
 #include <stdlib.h>
 
 #include "game_profile.h"
+#include "netplay.h"
 #include "lindbergh_rt.h"
 #include "xr_settings.h"
 
@@ -104,6 +105,7 @@ int main(int argc, char **argv)
      * vt3_Lindbergh/ where the executable runs and where ../shader/ lives. */
     if (!getenv("TEA_DIR")) setenv("TEA_DIR", "..", 1);
 
+    netplay_before_start();         /* a netplay joiner takes the host's settings before anything reads them */
     game_profile_apply(&k_profile);
     hle_register_all();
 

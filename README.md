@@ -26,7 +26,8 @@ Nothing is emulated.
 
 ## Features
 
-Two ways to play, chosen up front with two big buttons on the settings panel:
+Two ways to play, chosen up front with two big buttons on the settings
+panel's **Play** tab (the panel has three tabs: Play, Versus, Settings):
 
 - **Classic**: the arcade picture on a big virtual screen in front of you.
 - **VR**: you stand courtside, in the stadium.
@@ -63,6 +64,8 @@ Both modes:
   career between sessions the way the arcade's player card did. **Reset
   save** starts over; the old save is kept as a backup.
 - **Language**: English (default) or Japanese.
+- **Versus**: two players on two headsets, on the same Wi-Fi or online with
+  a room code, with voice chat (see [Versus](#versus-two-players) below).
 - **Quest controls**, either hand alike: trigger = top spin, A / X = slice,
   B / Y = lob, stick = move, stick click = Start. The left controller's menu
   button opens the settings panel.
@@ -71,6 +74,77 @@ Both modes:
   the Quest's GPU (see [the porting guide](docs/VT3_PORTING_GUIDE.md)).
 
 *Experimental*: built and checked on macOS, not yet confirmed on the headset.
+
+## Versus: two players
+
+Two Virtua Tennis 3 VR headsets play one match against each other, in the same
+room or over the Internet. (A Mac build can stand in for the second player;
+that is how it has been tested so far.)
+
+**How it works.** Nothing is streamed. Both headsets run the whole game, and
+the only thing they send each other is controller input, one small packet per
+frame. The game runs in a deterministic mode, so both copies compute the same
+match from the same input. To make sure, the two copies compare a checksum
+of the game's state every 30 frames; if they ever differ, the match ends
+and each player plays on alone. Input is applied a few frames late (3 online,
+adapting to the connection) so the other player's input has time to arrive.
+Details, test results and the wire format are in [docs/NETPLAY.md](docs/NETPLAY.md).
+
+**Playing.** Open the settings panel (left menu button) and pick the
+**Versus** tab:
+
+- **Online:** one player pulls **Host an online match**. The game restarts
+  and shows a big 4-digit room code until player 2 is in. Player 2 sets
+  the four digits on the Versus tab (pull a digit to count it up) and pulls
+  **Join room**.
+- **Same Wi-Fi:** one player pulls **Host a match here**; the other sees the
+  host in the list below it and pulls **Join**.
+- Player 2 presses **Start** once the match is running to join in, as on the
+  arcade.
+- The joiner takes the host's settings (Classic or VR, replays, overlays),
+  and these stay locked during the match. **Leave the match** restarts the
+  game on your own.
+
+**Voice chat** is on by default: an open mic that only sends while you talk
+(Opus, through the same connection; the Quest's echo cancelling keeps the
+game's sound out). The microphone permission is asked the first time you
+open the Versus tab, not at start-up. A small speaker icon in the bottom
+corner of your view shows when the other player is talking. **Voice chat
+On / Off** is on the Versus tab, and during a match **Voice chat** mutes your
+mic.
+
+**Display rate.** A Versus match runs the headset at 72 Hz, which holds a
+steady 60 fps on every court; your own rate comes back afterwards. (The
+match's sound is tied to the game's frames to keep both sides in sync, so a
+match running below 60 fps would make the voices sound slow.
+`LINDBERGH_NETPLAY_HZ=<rate>` in env.txt picks another rate.)
+
+**Online play needs a relay you host yourself** (no public one is run for
+this project). It is a small Cloudflare Worker in
+`lindberghrecomp/tools/netplay-relay` that pairs players by room code and
+passes their packets on; the free plan is plenty. Deploy it once:
+
+```sh
+cd lindberghrecomp/tools/netplay-relay
+npm install
+npx wrangler login
+npx wrangler deploy        # prints https://<name>.<you>.workers.dev
+```
+
+then add this line to `/sdcard/VirtuaTennis3/env.txt` on each headset (with
+your Worker's address); the Versus tab then shows the online rows:
+
+```
+LINDBERGH_NETPLAY_RELAY=wss://<name>.<you>.workers.dev
+```
+
+Same-Wi-Fi play needs no relay. Both players need builds from the same
+commit (a different build is refused, with the reason on the panel).
+
+*Status*: tested Quest against Mac on home Wi-Fi and through a relay, in
+Classic and VR; two Quests have not played each other yet. Each session's
+input is recorded (`vt3_Lindbergh/netplay_session.lgin`) so a rare
+out-of-sync match can be replayed and traced.
 
 ## Screenshots
 

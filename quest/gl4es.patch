@@ -537,6 +537,81 @@ index fe69266e..eb8864a4 100644
      if(tex->glname)
          gles_glDeleteTextures(1, &tex->glname);
      if(tex->data)
+diff --git a/src/gl/loader.h b/src/gl/loader.h
+index 065949cf..eac20ed7 100644
+--- a/src/gl/loader.h
++++ b/src/gl/loader.h
+@@ -142,23 +142,26 @@ EXPORT extern void *egl;
+ #endif
+ 
+ #define DEFINE_RAW(lib, name) static name##_PTR lib##_##name = NULL
++/* Lindbergh (2026-11-16): a plain flag, set after the pointer, instead of
++ * a thread-local one - in a library loaded by dlopen every thread-local
++ * access went through the linker's slow TLS path, at every GL call (1.5%
++ * of the Quest's GL thread). A second thread may load the same pointer
++ * again; it is the same value. */
++#define LOAD_ONCE_BEGIN static bool tried = false; if (!__atomic_load_n(&tried, __ATOMIC_ACQUIRE)) {
++#define LOAD_ONCE_END __atomic_store_n(&tried, true, __ATOMIC_RELEASE); }
+ #define LOAD_RAW(lib, name, ...) \
+     { \
+-        static THREAD_LOCAL bool first = true; \
+-        if (first) { \
+-            first = false; \
++        LOAD_ONCE_BEGIN \
+             if (lib != NULL) { \
+                 lib##_##name = (name##_PTR)__VA_ARGS__; \
+             } \
+             WARN_NULL(lib##_##name); \
+-        } \
++        LOAD_ONCE_END \
+     }
+ 
+ #define LOAD_RAW_3(lib, name, fnc1, fnc2, ...) \
+     { \
+-        static THREAD_LOCAL bool first = true; \
+-        if (first) { \
+-            first = false; \
++        LOAD_ONCE_BEGIN \
+             if (lib != NULL) { \
+                 lib##_##name = (name##_PTR)fnc1; \
+                 if(! lib##_##name) \
+@@ -167,31 +170,27 @@ EXPORT extern void *egl;
+                     __VA_ARGS__ \
+                 } \
+             } \
+-        } \
++        LOAD_ONCE_END \
+     }
+ 
+ #define LOAD_RAW_SILENT(lib, name, ...) \
+     { \
+-        static THREAD_LOCAL bool first = true; \
+-        if (first) { \
+-            first = false; \
++        LOAD_ONCE_BEGIN \
+             if (lib != NULL) { \
+                 lib##_##name = (name##_PTR)__VA_ARGS__; \
+             } \
+-        } \
++        LOAD_ONCE_END \
+     }
+ 
+ #define LOAD_RAW_ALT(lib, alt, name, ...) \
+     { \
+-        static THREAD_LOCAL bool first = true; \
+-        if (first) { \
+-            first = false; \
++        LOAD_ONCE_BEGIN \
+             if (lib != NULL) { \
+                 lib##_##name = (name##_PTR)__VA_ARGS__; \
+             } \
+             if(lib##_##name == NULL) \
+                 lib##_##name = alt##_##name; \
+-        } \
++        LOAD_ONCE_END \
+     }
+ 
+ #define LOAD_LIB(lib, name) DEFINE_RAW(lib, name); LOAD_RAW(lib, name, proc_address(lib, #name))
 diff --git a/src/gl/multiview.c b/src/gl/multiview.c
 new file mode 100644
 index 00000000..f5b7b6bc

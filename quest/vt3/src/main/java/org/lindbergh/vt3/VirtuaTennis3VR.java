@@ -18,6 +18,7 @@ package org.lindbergh.vt3;
 
 import android.content.Intent;
 import android.net.Uri;
+import android.net.wifi.WifiManager;
 import android.os.Bundle;
 import android.os.Environment;
 import android.provider.Settings;
@@ -32,6 +33,7 @@ import java.util.Arrays;
 import org.libsdl.app.SDLActivity;
 
 public class VirtuaTennis3VR extends SDLActivity {
+    private WifiManager.MulticastLock multicast;
     private static final String TAG = "VirtuaTennis3VR";
     private String problem;     /* null: the game is ready */
 
@@ -39,6 +41,12 @@ public class VirtuaTennis3VR extends SDLActivity {
     protected void onCreate(Bundle savedInstanceState) {
         problem = checkGame();
         super.onCreate(savedInstanceState);
+        /* Versus: a host hears a joiner's search (a UDP broadcast); Android
+         * drops broadcasts to apps unless one holds a multicast lock */
+        try {
+            WifiManager wifi = (WifiManager) getApplicationContext().getSystemService(WIFI_SERVICE);
+            if (wifi != null) { multicast = wifi.createMulticastLock("vt3-versus"); multicast.setReferenceCounted(false); multicast.acquire(); }
+        } catch (Exception e) { Log.w(TAG, "no multicast lock: " + e); }
         if (problem != null) {
             Toast.makeText(this, problem, Toast.LENGTH_LONG).show();
             finish();
@@ -120,6 +128,18 @@ public class VirtuaTennis3VR extends SDLActivity {
         writeHelp(own, msg);
         if (msg != null) Log.e(TAG, msg);
         return msg;
+    }
+
+    /* Called from the game (host_xr.c) when the panel's Versus page opens:
+     * voice chat needs the microphone, asked for here and only here, before
+     * any match (a prompt in the middle of one would stall it). Without it a
+     * match simply has no voice from this side. */
+    public void askForMic() {
+        runOnUiThread(() -> {
+            if (checkSelfPermission(android.Manifest.permission.RECORD_AUDIO) == android.content.pm.PackageManager.PERMISSION_GRANTED) return;
+            try { requestPermissions(new String[] { android.Manifest.permission.RECORD_AUDIO }, 47); }
+            catch (Exception e) { Log.w(TAG, "cannot ask for the microphone: " + e); }
+        });
     }
 
     /* Called from the game (host_xr.c): the settings panel's "Reset game".

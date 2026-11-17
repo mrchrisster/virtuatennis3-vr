@@ -324,3 +324,29 @@ Done (2026-11-16): 1 (INTERNET; no multicast yet), 2 by env.txt (no panel page y
 - **Session from the headset:** a Versus page (Host / Join by IP, status,
   Leave) instead of env.txt; the simulation settings (mode, replays,
   cutaways, overlays) locked while a session runs.
+
+## Update 2026-11-17: in the headset, online, voice
+
+- **Versus tab** in the headset panel (Play / Versus / Settings): host on the
+  same Wi-Fi (found by a UDP broadcast on port 47100) or **online** with a
+  4-digit room code shown big on the start-up screen until player 2 joins.
+  The game restarts into the session (`../netplay.txt`, read once); the
+  joiner adopts the host's settings (LS_QUERY / LS_SETTINGS); each session
+  starts from fresh factory NVRAM.
+- **Online** goes through a WebSocket relay, a Cloudflare Worker with one
+  Durable Object per room (`lindberghrecomp/tools/netplay-relay`, the way
+  Quest 3 Strikers does it): `LINDBERGH_NETPLAY_RELAY=wss://...`, modes
+  `online-host[:CODE]` / `online-join:CODE`. Online input delay starts at 3
+  frames (`LINDBERGH_NETPLAY_MIN_DELAY`).
+- **Voice chat** (`voice.c`): Opus 24 kbit/s in 40 ms pieces behind a
+  -38 dBFS gate held 300 ms, sent as LS_VOICE packets on the same link,
+  never part of the lockstep; 60-240 ms jitter buffer; Quest mic through
+  AAudio's VOICE_COMMUNICATION preset (echo cancelling).
+- **72 Hz in a match**: the match's sound is mixed per input frame
+  (deterministic), so a match below 60 fps sounds slow. VR on the busiest
+  court (New York) makes ~50-53 fps at 90 / 120 Hz (the GL thread, ~11 ms of
+  gl4es and driver work, misses the beat); at 72 Hz it holds 60. A session
+  therefore runs the headset at 72 Hz (`LINDBERGH_NETPLAY_HZ` overrides).
+- Each session records its input (`netplay_session.lgin`) so a desync can be
+  replayed; one seen at a new game's start (frame 30000) also diverges on a
+  Mac replay of the Quest's recording - open.
